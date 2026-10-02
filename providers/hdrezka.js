@@ -876,29 +876,9 @@ function getStreams(tmdbId, mediaType, season, episode) {
       return a.name.localeCompare(b.name);
     });
 
-    const uniqueQualities = [...new Set(out.map((s) => s.quality))].sort(
-      (a, b) => parseQualityValue(b) - parseQualityValue(a)
-    );
-
-    const padLen = Math.max(2, String(uniqueQualities.length).length);
-
-    const qualityRank = new Map(
-      uniqueQualities.map((q, i) => [
-        q,
-        String(i + 1).padStart(padLen, "0")
-      ])
-    );
-
     for (const s of out) {
-      // Nuvio sorts by name itself, so encode our desired ordering into it:
-      // 00 = Original, 01 = everything else.
-      const translatorRank = s._original ? "00" : "01";
-      const quality = qualityRank.get(s.quality);
-
-      s.name = `${translatorRank}.${quality}. ${s.name}`;
-
-      delete s._original;
-    }
+  delete s._original;
+}
 
     return out;
   });
