@@ -830,77 +830,77 @@ function getStreams(tmdbId, mediaType, season, episode) {
         if (!s.url || s.url === "null" || s.url.includes(":hls:")) continue;
         const quality = s.quality.replace(/<[^>]+>/g, "").trim();
         if (/\bultra\b|\bprem\b/i.test(quality)) continue;
-        const dedupeKey = `${translator.name}|${quality}`;
+
+        const original = isOriginalTranslator(translator);
+        const translatorLabel = original ? "Original" : translator.name;
+
+        const dedupeKey = `${translator.id}|${quality}`;
         if (seenKeys.has(dedupeKey)) continue;
         seenKeys.add(dedupeKey);
-        const original = isOriginalTranslator(translator);
-const translatorLabel = original ? "Original" : translator.name;
 
-const dedupeKey = `${translator.id}|${quality}`;
-if (seenKeys.has(dedupeKey)) continue;
-seenKeys.add(dedupeKey);
-
-translatorRows.push({
-  name: translatorLabel,
-  title: formatStreamTitle(
-    title,
-    year,
-    mediaType,
-    season,
-    episode,
-    `${quality} \xB7 ${translatorLabel}`
-  ),
-  url: s.url,
-  quality,
-  _original: original,
-  headers: {
-    Referer: pageUrl,
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-  },
-  subtitles: cleanSubs.length > 0 ? cleanSubs : void 0,
-  type: "mp4"
-});
+        translatorRows.push({
+          name: translatorLabel,
+          title: formatStreamTitle(
+            title,
+            year,
+            mediaType,
+            season,
+            episode,
+            `${quality} \xB7 ${translatorLabel}`
+          ),
+          url: s.url,
+          quality,
+          _original: original,
+          headers: {
+            Referer: pageUrl,
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          },
+          subtitles: cleanSubs.length > 0 ? cleanSubs : void 0,
+          type: "mp4"
+        });
       }
       return translatorRows;
     })));
     for (const rowList of rows) out.push(...rowList);
+
     out.sort((a, b) => {
-  // Original audio always before dubbed versions.
-  if (a._original !== b._original) {
-    return a._original ? -1 : 1;
-  }
+      // Original audio always before dubbed versions.
+      if (a._original !== b._original) {
+        return a._original ? -1 : 1;
+      }
 
-  // Within each group, highest quality first.
-  const aq = parseQualityValue(a.quality);
-  const bq = parseQualityValue(b.quality);
-  if (aq !== bq) return bq - aq;
+      // Within each group, highest quality first.
+      const aq = parseQualityValue(a.quality);
+      const bq = parseQualityValue(b.quality);
+      if (aq !== bq) return bq - aq;
 
-  return a.name.localeCompare(b.name);
-});
+      return a.name.localeCompare(b.name);
+    });
 
-const uniqueQualities = [...new Set(out.map((s) => s.quality))].sort(
-  (a, b) => parseQualityValue(b) - parseQualityValue(a)
-);
+    const uniqueQualities = [...new Set(out.map((s) => s.quality))].sort(
+      (a, b) => parseQualityValue(b) - parseQualityValue(a)
+    );
 
-const padLen = Math.max(2, String(uniqueQualities.length).length);
+    const padLen = Math.max(2, String(uniqueQualities.length).length);
 
-const qualityRank = new Map(
-  uniqueQualities.map((q, i) => [
-    q,
-    String(i + 1).padStart(padLen, "0")
-  ])
-);
+    const qualityRank = new Map(
+      uniqueQualities.map((q, i) => [
+        q,
+        String(i + 1).padStart(padLen, "0")
+      ])
+    );
 
-for (const s of out) {
-  // Nuvio sorts by name itself, so encode our desired ordering into it:
-  // 00 = Original, 01 = everything else.
-  const translatorRank = s._original ? "00" : "01";
-  const quality = qualityRank.get(s.quality);
+    for (const s of out) {
+      // Nuvio sorts by name itself, so encode our desired ordering into it:
+      // 00 = Original, 01 = everything else.
+      const translatorRank = s._original ? "00" : "01";
+      const quality = qualityRank.get(s.quality);
 
-  s.name = `${translatorRank}.${quality}. ${s.name}`;
+      s.name = `${translatorRank}.${quality}. ${s.name}`;
 
-  delete s._original;
-}
+      delete s._original;
+    }
+
     return out;
   });
 }
