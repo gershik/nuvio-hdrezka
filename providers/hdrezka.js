@@ -1342,29 +1342,39 @@ function getStreams(tmdbId, mediaType, season, episode) {
      * count against the limit.
      */
     const MAX_SUCCESSFUL_TRANSLATORS =
-      8;
+  8;
 
-    let successfulTranslatorCount =
-      0;
+// Don't spend ages testing a huge list when none of them work.
+const MAX_TRANSLATOR_ATTEMPTS =
+  8;
 
-    for (
-      let translatorIndex = 0;
-      translatorIndex <
-      translators.length;
-      translatorIndex++
-    ) {
-      if (
-        successfulTranslatorCount >=
-        MAX_SUCCESSFUL_TRANSLATORS
-      ) {
-        break;
-      }
+let successfulTranslatorCount =
+  0;
 
-      const translator =
-        translators[
-          translatorIndex
-        ];
+let translatorAttemptCount =
+  0;
 
+   for (
+  let translatorIndex = 0;
+  translatorIndex <
+  translators.length;
+  translatorIndex++
+) {
+  if (
+    successfulTranslatorCount >=
+    MAX_SUCCESSFUL_TRANSLATORS ||
+    translatorAttemptCount >=
+    MAX_TRANSLATOR_ATTEMPTS
+  ) {
+    break;
+  }
+
+  const translator =
+    translators[
+      translatorIndex
+    ];
+
+  translatorAttemptCount++;
       let cdn;
 
       try {
@@ -1458,7 +1468,7 @@ function getStreams(tmdbId, mediaType, season, episode) {
 
         // Keep the old explicit premium/ultra quality-label filter too.
         if (
-  /\bultra\b|\bprem\b|\b2160p?\b|\b4k\b|\buhd\b/i.test(quality)
+   /\bultra\b|\bprem\b|\b1440p?\b|\b2k\b|\b2160p?\b|\b4k\b|\buhd\b/i.test(quality)
 ) {
   continue;
 }
