@@ -229,9 +229,8 @@ function searchHdrezka(title, originalTitle, year, mediaType) {
     const seenUrls = /* @__PURE__ */ new Set();
     const all = [];
     const baseQueries = [
-      originalTitle,
-      title
-    ].filter(Boolean);
+  ...new Set([originalTitle, title].filter(Boolean))
+];
     const queries = [];
     for (const q of baseQueries) {
       queries.push(q);
