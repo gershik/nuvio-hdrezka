@@ -7,7 +7,7 @@
       "id": "hdrezka",
       "name": "Hdrezka",
       "description": "Stream URLs from HDRezka (hdrezka.website). Translates TMDB IDs to HDRezka pages, scrapes the page, and pulls direct CDN links.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": "justchokingaround",
       "supportedTypes": ["movie", "tv"],
       "filename": "providers/hdrezka.js",
