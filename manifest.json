@@ -1,13 +1,13 @@
 {
   "id": "nuvio-hdrezka",
   "name": "HDRezka",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "scrapers": [
     {
       "id": "hdrezka",
       "name": "Hdrezka",
       "description": "Stream URLs from HDRezka (hdrezka.website). Translates TMDB IDs to HDRezka pages, scrapes the page, and pulls direct CDN links.",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "author": "justchokingaround",
       "supportedTypes": ["movie", "tv"],
       "filename": "providers/hdrezka.js",
