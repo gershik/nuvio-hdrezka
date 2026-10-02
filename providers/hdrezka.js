@@ -71,7 +71,6 @@ var HEADERS = {
   "sec-ch-ua-mobile": "?0",
   "sec-ch-ua-platform": '"Windows"'
 };
-
 var cookieJar = /* @__PURE__ */ new Map();
 
 function jarGet(host) {
@@ -80,6 +79,7 @@ function jarGet(host) {
 
 function jarSet(host, cookies) {
   if (!cookies || cookies.length === 0) return;
+
   const existing = jarGet(host);
 
   for (const pair of cookies) {
@@ -140,8 +140,11 @@ function generateFavs() {
 
 function readSetCookies(response) {
   var _a, _b;
+
   const out = [];
-  const list = ((_b = (_a = response.headers).getSetCookie) == null ? void 0 : _b.call(_a)) || [];
+
+  const list =
+    ((_b = (_a = response.headers).getSetCookie) == null ? void 0 : _b.call(_a)) || [];
 
   for (const c of list) {
     out.push(c.split(";")[0]);
@@ -176,7 +179,10 @@ function fetchWithTimeout(url, init, timeoutMs) {
     try {
       return yield fetch(
         url,
-        __spreadProps(__spreadValues({}, init), { signal: controller.signal })
+        __spreadProps(
+          __spreadValues({}, init),
+          { signal: controller.signal }
+        )
       );
     } finally {
       clearTimeout(timer);
@@ -210,12 +216,18 @@ function fetchText(_0) {
       jarSet(host, readSetCookies(response));
     }
 
-    if (options.expectRedirect && response.status >= 300 && response.status < 400) {
+    if (
+      options.expectRedirect &&
+      response.status >= 300 &&
+      response.status < 400
+    ) {
       return response;
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status} ${response.statusText} for ${url}`);
+      throw new Error(
+        `HTTP ${response.status} ${response.statusText} for ${url}`
+      );
     }
 
     return yield response.text();
@@ -234,7 +246,10 @@ function postForm(_0, _1) {
     const url = path.startsWith("http") ? path : `${BASE_URL}${path}`;
 
     const body = Object.entries(fields)
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .map(
+        ([k, v]) =>
+          `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`
+      )
       .join("&");
 
     const host = hostFromUrl(url);
@@ -244,19 +259,25 @@ function postForm(_0, _1) {
       url,
       __spreadValues({
         method: "POST",
+
         headers: __spreadValues(
           __spreadValues(
-            __spreadProps(__spreadValues({}, HEADERS), {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "X-Requested-With": "XMLHttpRequest"
-            }),
+            __spreadProps(
+              __spreadValues({}, HEADERS),
+              {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-Requested-With": "XMLHttpRequest"
+              }
+            ),
             cookieHeader ? { Cookie: cookieHeader } : {}
           ),
           options.headers || {}
         ),
+
         body,
         redirect: "follow"
       }, options),
+
       options.timeoutMs || 15e3
     );
 
@@ -265,7 +286,9 @@ function postForm(_0, _1) {
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status} ${response.statusText} for POST ${url}`);
+      throw new Error(
+        `HTTP ${response.status} ${response.statusText} for POST ${url}`
+      );
     }
 
     return yield response.json();
@@ -279,18 +302,25 @@ function searchHdrezka(title, originalTitle, year, mediaType) {
     const all = [];
 
     const baseQueries = [
-      ...new Set([originalTitle, title].filter(Boolean))
+      ...new Set(
+        [originalTitle, title].filter(Boolean)
+      )
     ];
 
     const queries = [];
 
     for (const q of baseQueries) {
       queries.push(q);
-      if (year) queries.push(`${q} ${year}`);
+
+      if (year) {
+        queries.push(`${q} ${year}`);
+      }
     }
 
     for (const query of queries) {
-      const url = `${BASE_URL}/engine/ajax/search.php?q=${encodeURIComponent(query)}`;
+      const url =
+        `${BASE_URL}/engine/ajax/search.php?q=${encodeURIComponent(query)}`;
+
       let html;
 
       try {
@@ -301,7 +331,10 @@ function searchHdrezka(title, originalTitle, year, mediaType) {
           }
         });
       } catch (e) {
-        console.error(`[HDRezka] search failed for "${query}": ${e.message}`);
+        console.error(
+          `[HDRezka] search failed for "${query}": ${e.message}`
+        );
+
         continue;
       }
 
@@ -313,13 +346,24 @@ function searchHdrezka(title, originalTitle, year, mediaType) {
       }
     }
 
-    return rankCandidates(all, { title, originalTitle, year, mediaType });
+    return rankCandidates(
+      all,
+      {
+        title,
+        originalTitle,
+        year,
+        mediaType
+      }
+    );
   });
 }
 
 function parseSearchHtml(html) {
   const candidates = [];
-  const re = /<a href="([^"]+)"><span class="enty">([^<]+)<\/span>[^<]*?\(([^)]+)\)/g;
+
+  const re =
+    /<a href="([^"]+)"><span class="enty">([^<]+)<\/span>[^<]*?\(([^)]+)\)/g;
+
   let m;
 
   while ((m = re.exec(html)) !== null) {
@@ -327,17 +371,24 @@ function parseSearchHtml(html) {
     const itemTitle = m[2].trim();
     const itemYearRaw = m[3].trim();
 
-    const yearMatch = itemYearRaw.match(/(\d{4})/);
-    const itemYear = yearMatch ? parseInt(yearMatch[1], 10) : null;
+    const yearMatch =
+      itemYearRaw.match(/(\d{4})/);
+
+    const itemYear =
+      yearMatch
+        ? parseInt(yearMatch[1], 10)
+        : null;
 
     const itemType =
-      itemUrl.includes("/series/") || itemUrl.includes("/animation/")
+      itemUrl.includes("/series/") ||
+      itemUrl.includes("/animation/")
         ? "tv"
         : itemUrl.includes("/films/")
           ? "movie"
           : null;
 
-    const idMatch = itemUrl.match(/\/(\d+)-[^/]+\.html$/);
+    const idMatch =
+      itemUrl.match(/\/(\d+)-[^/]+\.html$/);
 
     candidates.push({
       id: idMatch ? idMatch[1] : null,
@@ -351,44 +402,80 @@ function parseSearchHtml(html) {
   return candidates;
 }
 
-function rankCandidates(candidates, { title, originalTitle, year, mediaType }) {
-  if (candidates.length === 0) return [];
+function rankCandidates(
+  candidates,
+  {
+    title,
+    originalTitle,
+    year,
+    mediaType
+  }
+) {
+  if (candidates.length === 0) {
+    return [];
+  }
 
-  const norm = (s) =>
-    (s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  const norm =
+    (s) =>
+      (s || "")
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, "");
 
   const targetType =
-    mediaType === "tv" || mediaType === "anime" ? "tv" : "movie";
+    mediaType === "tv" ||
+    mediaType === "anime"
+      ? "tv"
+      : "movie";
 
-  const normalizedTargets = [title, originalTitle]
-    .filter(Boolean)
-    .map(norm)
-    .filter(Boolean);
+  const normalizedTargets =
+    [title, originalTitle]
+      .filter(Boolean)
+      .map(norm)
+      .filter(Boolean);
 
-  const scored = candidates.map((c) => {
-    let score = 0;
+  const scored =
+    candidates.map((c) => {
+      let score = 0;
 
-    if (c.type === targetType) score += 10;
-    if (year && c.year === year) score += 50;
-
-    const normalizedTitle = norm(c.title);
-
-    for (const t of normalizedTargets) {
-      if (normalizedTitle === t) {
-        score += 40;
-        break;
+      if (c.type === targetType) {
+        score += 10;
       }
 
-      if (normalizedTitle.includes(t) || t.includes(normalizedTitle)) {
-        score += 8;
+      if (year && c.year === year) {
+        score += 50;
       }
-    }
 
-    return { c, score };
-  });
+      const normalizedTitle =
+        norm(c.title);
 
-  scored.sort((a, b) => b.score - a.score);
-  return scored.map((s) => s.c);
+      for (const t of normalizedTargets) {
+        if (normalizedTitle === t) {
+          score += 40;
+          break;
+        }
+
+        if (
+          normalizedTitle.includes(t) ||
+          t.includes(normalizedTitle)
+        ) {
+          score += 8;
+        }
+      }
+
+      return {
+        c,
+        score
+      };
+    });
+
+  scored.sort(
+    (a, b) =>
+      b.score - a.score
+  );
+
+  return scored.map(
+    (s) => s.c
+  );
 }
 
 // src/hdrezka/sha256.js
@@ -399,7 +486,7 @@ var K = new Uint32Array([
   3921009573,
   961987163,
   1508970993,
-  2453635748,
+  2456956037,
   2870763221,
   3624381080,
   310598401,
@@ -472,26 +559,39 @@ function maj(x, y, z) {
 }
 
 function ep0(x) {
-  return rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22);
+  return rotr(x, 2) ^
+    rotr(x, 13) ^
+    rotr(x, 22);
 }
 
 function ep1(x) {
-  return rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25);
+  return rotr(x, 6) ^
+    rotr(x, 11) ^
+    rotr(x, 25);
 }
 
 function sig0(x) {
-  return rotr(x, 7) ^ rotr(x, 18) ^ x >>> 3;
+  return rotr(x, 7) ^
+    rotr(x, 18) ^
+    x >>> 3;
 }
 
 function sig1(x) {
-  return rotr(x, 17) ^ rotr(x, 19) ^ x >>> 10;
+  return rotr(x, 17) ^
+    rotr(x, 19) ^
+    x >>> 10;
 }
 
 function utf8ToBytes(str) {
   const out = [];
 
-  for (let i = 0; i < str.length; i++) {
-    let c = str.charCodeAt(i);
+  for (
+    let i = 0;
+    i < str.length;
+    i++
+  ) {
+    let c =
+      str.charCodeAt(i);
 
     if (c < 128) {
       out.push(c);
@@ -500,14 +600,22 @@ function utf8ToBytes(str) {
         192 | c >> 6,
         128 | c & 63
       );
-    } else if (c < 55296 || c >= 57344) {
+    } else if (
+      c < 55296 ||
+      c >= 57344
+    ) {
       out.push(
         224 | c >> 12,
         128 | c >> 6 & 63,
         128 | c & 63
       );
     } else {
-      c = 65536 + ((c & 1023) << 10 | str.charCodeAt(++i) & 1023);
+      c =
+        65536 +
+        (
+          (c & 1023) << 10 |
+          str.charCodeAt(++i) & 1023
+        );
 
       out.push(
         240 | c >> 18,
@@ -527,19 +635,33 @@ function sha256(message) {
       ? utf8ToBytes(message)
       : message;
 
-  const len = msg.length * 8;
-  const totalBits = len + 65;
-  const paddedLen = Math.ceil(totalBits / 512) * 512 / 8;
-  const padded = new Uint8Array(paddedLen);
+  const len =
+    msg.length * 8;
+
+  const totalBits =
+    len + 65;
+
+  const paddedLen =
+    Math.ceil(totalBits / 512) *
+    512 /
+    8;
+
+  const padded =
+    new Uint8Array(paddedLen);
 
   padded.set(msg);
   padded[msg.length] = 128;
 
-  const view = new DataView(padded.buffer);
+  const view =
+    new DataView(
+      padded.buffer
+    );
 
   view.setUint32(
     paddedLen - 8,
-    Math.floor(len / 4294967296),
+    Math.floor(
+      len / 4294967296
+    ),
     false
   );
 
@@ -549,24 +671,41 @@ function sha256(message) {
     false
   );
 
-  const H = new Int32Array([
-    1779033703,
-    3144134277,
-    1013904242,
-    2773480762,
-    1359893119,
-    2600822924,
-    528734635,
-    1541459225
-  ]);
+  const H =
+    new Int32Array([
+      1779033703,
+      3144134277,
+      1013904242,
+      2773480762,
+      1359893119,
+      2600822924,
+      528734635,
+      1541459225
+    ]);
 
-  const W = new Uint32Array(64);
-  const chunk = new Uint8Array(64);
+  const W =
+    new Uint32Array(64);
 
-  for (let offset = 0; offset < paddedLen; offset += 64) {
-    chunk.set(padded.subarray(offset, offset + 64));
+  const chunk =
+    new Uint8Array(64);
 
-    for (let i = 0; i < 16; i++) {
+  for (
+    let offset = 0;
+    offset < paddedLen;
+    offset += 64
+  ) {
+    chunk.set(
+      padded.subarray(
+        offset,
+        offset + 64
+      )
+    );
+
+    for (
+      let i = 0;
+      i < 16;
+      i++
+    ) {
       W[i] =
         chunk[i * 4] << 24 |
         chunk[i * 4 + 1] << 16 |
@@ -574,7 +713,11 @@ function sha256(message) {
         chunk[i * 4 + 3];
     }
 
-    for (let i = 16; i < 64; i++) {
+    for (
+      let i = 16;
+      i < 64;
+      i++
+    ) {
       W[i] =
         sig1(W[i - 2]) +
         W[i - 7] +
@@ -592,7 +735,11 @@ function sha256(message) {
     let g = H[6];
     let h = H[7];
 
-    for (let i = 0; i < 64; i++) {
+    for (
+      let i = 0;
+      i < 64;
+      i++
+    ) {
       const T1 =
         h +
         ep1(e) +
@@ -626,43 +773,74 @@ function sha256(message) {
     H[7] = H[7] + h | 0;
   }
 
-  const hash = new Uint8Array(32);
+  const hash =
+    new Uint8Array(32);
 
-  for (let i = 0; i < 8; i++) {
-    hash[i * 4] = H[i] >>> 24 & 255;
-    hash[i * 4 + 1] = H[i] >>> 16 & 255;
-    hash[i * 4 + 2] = H[i] >>> 8 & 255;
-    hash[i * 4 + 3] = H[i] & 255;
+  for (
+    let i = 0;
+    i < 8;
+    i++
+  ) {
+    hash[i * 4] =
+      H[i] >>> 24 & 255;
+
+    hash[i * 4 + 1] =
+      H[i] >>> 16 & 255;
+
+    hash[i * 4 + 2] =
+      H[i] >>> 8 & 255;
+
+    hash[i * 4 + 3] =
+      H[i] & 255;
   }
 
   return hash;
 }
 
 function sha256Hex(message) {
-  const bytes = sha256(message);
+  const bytes =
+    sha256(message);
+
   let hex = "";
 
-  for (let i = 0; i < bytes.length; i++) {
-    const h = bytes[i].toString(16);
-    hex += h.length === 1 ? "0" + h : h;
+  for (
+    let i = 0;
+    i < bytes.length;
+    i++
+  ) {
+    const h =
+      bytes[i].toString(16);
+
+    hex +=
+      h.length === 1
+        ? "0" + h
+        : h;
   }
 
   return hex;
 }
 
 // src/hdrezka/anubis.js
-var ANUBIS_BASE = "/.within.website/x/cmd/anubis";
-var PASS_PATH = `${ANUBIS_BASE}/api/pass-challenge`;
+var ANUBIS_BASE =
+  "/.within.website/x/cmd/anubis";
+
+var PASS_PATH =
+  `${ANUBIS_BASE}/api/pass-challenge`;
 
 function parseAnubisChallenge(html) {
-  const match = html.match(
-    /<script id="anubis_challenge" type="application\/json">([\s\S]+?)<\/script>/
-  );
+  const match =
+    html.match(
+      /<script id="anubis_challenge" type="application\/json">([\s\S]+?)<\/script>/
+    );
 
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
 
   try {
-    const obj = JSON.parse(match[1]);
+    const obj =
+      JSON.parse(match[1]);
+
     return obj.challenge;
   } catch (e) {
     return null;
@@ -670,38 +848,68 @@ function parseAnubisChallenge(html) {
 }
 
 function solveChallenge(challenge) {
-  return __async(this, null, function* () {
-    const difficulty = challenge.difficulty;
-    const target = "0".repeat(difficulty);
-    const base = challenge.randomData;
-    let nonce = 0;
+  return __async(
+    this,
+    null,
+    function* () {
+      const difficulty =
+        challenge.difficulty;
 
-    while (true) {
-      const hash = yield sha256Hex(base + nonce.toString());
+      const target =
+        "0".repeat(difficulty);
 
-      if (hash.startsWith(target)) {
-        return {
-          id: challenge.id,
-          nonce: nonce.toString(),
-          response: hash,
-          difficulty
-        };
+      const base =
+        challenge.randomData;
+
+      let nonce = 0;
+
+      while (true) {
+        const hash =
+          yield sha256Hex(
+            base +
+            nonce.toString()
+          );
+
+        if (
+          hash.startsWith(
+            target
+          )
+        ) {
+          return {
+            id: challenge.id,
+            nonce: nonce.toString(),
+            response: hash,
+            difficulty
+          };
+        }
+
+        nonce++;
       }
-
-      nonce++;
     }
-  });
+  );
 }
 
 function submitChallenge(_0, _1, _2) {
   return __async(
     this,
     arguments,
-    function* ({ id, nonce, response, difficulty }, redirUrl, t0) {
+    function* (
+      {
+        id,
+        nonce,
+        response,
+        difficulty
+      },
+      redirUrl,
+      t0
+    ) {
       var _a, _b, _c;
 
       const elapsedTime =
-        ((Date.now() - t0) / 1e3).toFixed(3);
+        (
+          (Date.now() - t0) /
+          1e3
+        ).toFixed(3);
 
       const parts = [
         `id=${encodeURIComponent(id)}`,
@@ -714,43 +922,73 @@ function submitChallenge(_0, _1, _2) {
       const url =
         `${BASE_URL}${PASS_PATH}?${parts.join("&")}`;
 
-      const host = hostFromUrl(redirUrl);
+      const host =
+        hostFromUrl(redirUrl);
 
       const testCookieValue =
         (_a = cookieJar.get(host)) == null
           ? void 0
-          : _a["techaro.lol-anubis-cookie-verification"];
+          : _a[
+              "techaro.lol-anubis-cookie-verification"
+            ];
 
       const testCookie =
         testCookieValue
           ? `techaro.lol-anubis-cookie-verification=${testCookieValue}`
           : null;
 
-      const headers = __spreadValues(
-        __spreadValues({}, HEADERS),
-        testCookie ? { Cookie: testCookie } : {}
-      );
+      const headers =
+        __spreadValues(
+          __spreadValues(
+            {},
+            HEADERS
+          ),
+          testCookie
+            ? { Cookie: testCookie }
+            : {}
+        );
 
-      const res = yield fetch(url, {
-        method: "GET",
-        headers,
-        redirect: "manual"
-      });
+      const res =
+        yield fetch(
+          url,
+          {
+            method: "GET",
+            headers,
+            redirect: "manual"
+          }
+        );
 
       const setCookies =
         ((_c = (_b = res.headers).getSetCookie) == null
           ? void 0
-          : _c.call(_b)) || [];
+          : _c.call(_b)) ||
+        [];
 
-      if (setCookies.length === 0) {
-        const header = res.headers.get("set-cookie");
-        if (header) setCookies.push(header);
+      if (
+        setCookies.length === 0
+      ) {
+        const header =
+          res.headers.get(
+            "set-cookie"
+          );
+
+        if (header) {
+          setCookies.push(
+            header
+          );
+        }
       }
 
       const verify =
-        setCookies.find((c) => c.includes("anubis-auth="));
+        setCookies.find(
+          (c) =>
+            c.includes(
+              "anubis-auth="
+            )
+        );
 
-      const cookie = verify.split(";")[0];
+      const cookie =
+        verify.split(";")[0];
 
       jarSet(
         hostFromUrl(redirUrl),
@@ -764,40 +1002,69 @@ function submitChallenge(_0, _1, _2) {
 
 // src/hdrezka/extractor.js
 function fetchPage(url) {
-  return __async(this, null, function* () {
-    const html = yield fetchText(url);
-    const challenge = parseAnubisChallenge(html);
+  return __async(
+    this,
+    null,
+    function* () {
+      const html =
+        yield fetchText(url);
 
-    if (!challenge) return html;
+      const challenge =
+        parseAnubisChallenge(
+          html
+        );
 
-    console.log(
-      `[HDRezka] Anubis challenge (difficulty=${challenge.difficulty})`
-    );
+      if (!challenge) {
+        return html;
+      }
 
-    const t0 = Date.now();
-    const solution = yield solveChallenge(challenge);
+      console.log(
+        `[HDRezka] Anubis challenge (difficulty=${challenge.difficulty})`
+      );
 
-    yield submitChallenge(
-      solution,
-      url,
-      t0
-    );
+      const t0 =
+        Date.now();
 
-    return yield fetchText(url);
-  });
+      const solution =
+        yield solveChallenge(
+          challenge
+        );
+
+      yield submitChallenge(
+        solution,
+        url,
+        t0
+      );
+
+      return yield fetchText(
+        url
+      );
+    }
+  );
 }
 
-function extractTranslatorAndId(html, mediaType) {
+function extractTranslatorAndId(
+  html,
+  mediaType
+) {
   const postIdMatch =
-    html.match(/<input[^>]*id="post_id"[^>]*value="(\d+)"/) ||
-    html.match(/data-id="(\d+)"/);
+    html.match(
+      /<input[^>]*id="post_id"[^>]*value="(\d+)"/
+    ) ||
+    html.match(
+      /data-id="(\d+)"/
+    );
 
   const postId =
     postIdMatch
       ? postIdMatch[1]
       : null;
 
-  if (html.includes('data-translator_id="238"')) {
+  if (
+    html.includes(
+      'data-translator_id="238"'
+    )
+  ) {
     return {
       postId,
       translatorId: "238"
@@ -829,12 +1096,15 @@ function extractTranslatorAndId(html, mediaType) {
   }
 
   const listMatch =
-    html.match(/data-translator_id="(\d+)"/);
+    html.match(
+      /data-translator_id="(\d+)"/
+    );
 
   if (listMatch) {
     return {
       postId,
-      translatorId: listMatch[1]
+      translatorId:
+        listMatch[1]
     };
   }
 
@@ -852,7 +1122,9 @@ function extractTranslators(html) {
 
   let m;
 
-  while ((m = re.exec(html)) !== null) {
+  while (
+    (m = re.exec(html)) !== null
+  ) {
     list.push({
       id: m[1],
       name: m[2].trim()
@@ -876,7 +1148,8 @@ function isAllowedTranslator(name) {
 
   if (
     desired.some(
-      (kw) => lower.includes(kw)
+      (kw) =>
+        lower.includes(kw)
     )
   ) {
     return true;
@@ -886,59 +1159,83 @@ function isAllowedTranslator(name) {
     "\u0443\u043A\u0440\u0430\u0438\u043D",
     "\u0443\u043A\u0440\u0430\u0457\u043D",
     "ukrainian",
+
     "\u0433\u0440\u0443\u0437\u0438\u043D",
     "georgian",
+
     "\u0431\u0435\u043B\u043E\u0440\u0443\u0441",
     "\u0431\u0456\u043B\u043E\u0440\u0443\u0441",
     "belarusian",
+
     "\u043A\u0430\u0437\u0430\u0445",
     "kazakh",
+
     "\u0430\u0440\u043C\u044F\u043D",
     "armenian",
+
     "\u0430\u0437\u0435\u0440\u0431\u0430\u0439\u0434\u0436\u0430\u043D",
     "azerbaijani",
+
     "\u043B\u0438\u0442\u043E\u0432\u0441\u043A",
     "\u043B\u0438\u0442\u0432\u0430",
     "lithuanian",
+
     "\u043B\u0430\u0442\u044B\u0448",
     "latvian",
+
     "\u044D\u0441\u0442\u043E\u043D",
     "estonian",
+
     "\u043C\u043E\u043B\u0434\u0430\u0432",
     "moldovan",
+
     "\u0442\u0430\u0434\u0436\u0438\u043A",
     "tajik",
+
     "\u043A\u0438\u0440\u0433\u0438\u0437",
     "kyrgyz",
+
     "\u0443\u0437\u0431\u0435\u043A",
     "uzbek",
+
     "\u0438\u0441\u043F\u0430\u043D",
     "spanish",
+
     "\u0444\u0440\u0430\u043D\u0446\u0443\u0437",
     "french",
+
     "\u0438\u0442\u0430\u043B\u044C\u044F\u043D",
     "italian",
+
     "\u043F\u043E\u043B\u044C\u0441\u043A",
     "polish",
+
     "\u0442\u0443\u0440\u0435\u0446\u043A",
     "turkish",
+
     "\u043A\u0438\u0442\u0430\u0439\u0441\u043A",
     "chinese",
+
     "\u044F\u043F\u043E\u043D\u0441\u043A",
     "japanese",
+
     "\u043A\u043E\u0440\u0435\u0439\u0441\u043A",
     "korean"
   ];
 
   if (
     blocked.some(
-      (kw) => lower.includes(kw)
+      (kw) =>
+        lower.includes(kw)
     )
   ) {
     return false;
   }
 
-  if (/[\u0400-\u04FF]/.test(name)) {
+  if (
+    /[\u0400-\u04FF]/
+      .test(name)
+  ) {
     return true;
   }
 
@@ -954,12 +1251,12 @@ function isAllowedTranslator(name) {
       "hdrezka studio"
     ]);
 
-  if (knownRussian.has(lower)) {
+  if (
+    knownRussian.has(lower)
+  ) {
     return true;
   }
 
-  // Keep unknown Latin-labelled translators too.
-  // German is intentionally NOT blocked.
   return true;
 }
 
@@ -980,7 +1277,8 @@ function normalizeForCompare(str) {
 function isOriginalTranslator(translator) {
   const name =
     normalizeForCompare(
-      translator && translator.name
+      translator &&
+      translator.name
         ? translator.name
         : ""
     );
@@ -991,8 +1289,12 @@ function isOriginalTranslator(translator) {
       translator.id ||
       ""
     ) === "238" ||
-    name.includes("оригинал") ||
-    name.includes("original")
+    name.includes(
+      "оригинал"
+    ) ||
+    name.includes(
+      "original"
+    )
   );
 }
 
@@ -1009,15 +1311,22 @@ function deobfuscateStreams(obfuscated) {
     obfuscated
       .trim()
       .startsWith("[") &&
-    obfuscated.includes("]http");
+    obfuscated.includes(
+      "]http"
+    );
 
   if (looksPlain) {
     decoded = obfuscated;
   } else {
     let stripped =
       obfuscated
-        .replace("#h", "")
-        .split("//_//")
+        .replace(
+          "#h",
+          ""
+        )
+        .split(
+          "//_//"
+        )
         .join("");
 
     const trashChars = [
@@ -1031,7 +1340,11 @@ function deobfuscateStreams(obfuscated) {
     const trashSet =
       /* @__PURE__ */ new Set();
 
-    for (let len = 2; len <= 3; len++) {
+    for (
+      let len = 2;
+      len <= 3;
+      len++
+    ) {
       const buckets =
         Array.from(
           { length: len },
@@ -1040,33 +1353,54 @@ function deobfuscateStreams(obfuscated) {
 
       let combos = [""];
 
-      for (const bucket of buckets) {
+      for (
+        const bucket
+        of buckets
+      ) {
         const next = [];
 
-        for (const prefix of combos) {
-          for (const c of bucket) {
-            next.push(prefix + c);
+        for (
+          const prefix
+          of combos
+        ) {
+          for (
+            const c
+            of bucket
+          ) {
+            next.push(
+              prefix + c
+            );
           }
         }
 
         combos = next;
       }
 
-      for (const combo of combos) {
+      for (
+        const combo
+        of combos
+      ) {
         trashSet.add(
-          encodeBase64(combo)
+          encodeBase64(
+            combo
+          )
         );
       }
     }
 
     const sortedTrash =
-      Array.from(trashSet)
-        .sort(
-          (a, b) =>
-            b.length - a.length
-        );
+      Array.from(
+        trashSet
+      ).sort(
+        (a, b) =>
+          b.length -
+          a.length
+      );
 
-    for (const t of sortedTrash) {
+    for (
+      const t
+      of sortedTrash
+    ) {
       stripped =
         stripped
           .split(t)
@@ -1075,30 +1409,44 @@ function deobfuscateStreams(obfuscated) {
 
     try {
       decoded =
-        decodeBase64Utf8(stripped);
+        decodeBase64Utf8(
+          stripped
+        );
     } catch (e) {
-      decoded = stripped;
+      decoded =
+        stripped;
     }
   }
 
   const out = [];
+
   const re =
     /\[([^\]]+)\]([^,]+)/g;
 
   let m;
 
-  while ((m = re.exec(decoded)) !== null) {
+  while (
+    (m = re.exec(decoded)) !== null
+  ) {
     const quality =
       m[1].trim();
 
     const url =
       m[2]
-        .split(/\s+or\s+/)
-        .map((u) => u.trim())
+        .split(
+          /\s+or\s+/
+        )
+        .map(
+          (u) => u.trim()
+        )
         .find(
           (u) =>
-            u.startsWith("http") &&
-            !u.includes(":hls:")
+            u.startsWith(
+              "http"
+            ) &&
+            !u.includes(
+              ":hls:"
+            )
         );
 
     if (url) {
@@ -1109,7 +1457,9 @@ function deobfuscateStreams(obfuscated) {
     }
   }
 
-  if (out.length === 0) {
+  if (
+    out.length === 0
+  ) {
     throw new Error(
       `STAGE5_NO_STREAMS raw=${obfuscated.slice(0, 80)} decoded=${decoded.slice(0, 80)}`
     );
@@ -1129,22 +1479,33 @@ function parseSubtitles(obfuscated) {
     obfuscated
       .trim()
       .startsWith("[") &&
-    obfuscated.includes("]http");
+    obfuscated.includes(
+      "]http"
+    );
 
   if (looksPlain) {
-    decoded = obfuscated;
+    decoded =
+      obfuscated;
   } else {
     const stripped =
       obfuscated
-        .replace("#h", "")
-        .split("//_//")
+        .replace(
+          "#h",
+          ""
+        )
+        .split(
+          "//_//"
+        )
         .join("");
 
     try {
       decoded =
-        decodeBase64Utf8(stripped);
+        decodeBase64Utf8(
+          stripped
+        );
     } catch (e) {
-      decoded = stripped;
+      decoded =
+        stripped;
     }
   }
 
@@ -1155,447 +1516,467 @@ function parseSubtitles(obfuscated) {
 
   let m;
 
-  while ((m = re.exec(decoded)) !== null) {
+  while (
+    (m = re.exec(decoded)) !== null
+  ) {
     out.push({
-      language: m[1].trim(),
-      url: m[2]
+      language:
+        m[1].trim(),
+
+      url:
+        m[2]
     });
   }
 
   return out;
 }
 
-function getStreams(tmdbId, mediaType, season, episode) {
-  return __async(this, null, function* () {
-    const resolved =
-      yield resolveTmdbId(
-        tmdbId,
-        mediaType
-      );
+function getStreams(
+  tmdbId,
+  mediaType,
+  season,
+  episode
+) {
+  return __async(
+    this,
+    null,
+    function* () {
+      const resolved =
+        yield resolveTmdbId(
+          tmdbId,
+          mediaType
+        );
 
-    tmdbId =
-      resolved.id;
+      tmdbId =
+        resolved.id;
 
-    mediaType =
-      resolved.mediaType;
+      mediaType =
+        resolved.mediaType;
 
-    const tmdb =
-      resolved.title
-        ? resolved
-        : yield fetchTmdb(
-            tmdbId,
-            mediaType
-          );
+      const tmdb =
+        resolved.title
+          ? resolved
+          : yield fetchTmdb(
+              tmdbId,
+              mediaType
+            );
 
-    const title =
-      tmdb.title;
+      const title =
+        tmdb.title;
 
-    const year =
-      tmdb.year;
+      const year =
+        tmdb.year;
 
-    if (!title) {
-      throw new Error(
-        `STAGE1_NO_TITLE (tmdb=${tmdbId})`
-      );
-    }
-
-    const candidates =
-      yield searchHdrezka(
-        title,
-        tmdb.originalTitle,
-        year,
-        mediaType
-      );
-
-    if (candidates.length === 0) {
-      throw new Error(
-        `STAGE2_NO_CANDIDATES title=${title}`
-      );
-    }
-
-    const best =
-      candidates[0];
-
-    const pageUrl =
-      best.url.startsWith("http")
-        ? best.url
-        : `${BASE_URL}${best.url.startsWith("/") ? "" : "/"}${best.url}`;
-
-    const html =
-      yield fetchPage(pageUrl);
-
-    const {
-      postId,
-      translatorId:
-        defaultTranslatorId
-    } =
-      extractTranslatorAndId(
-        html,
-        mediaType
-      );
-
-    if (!postId) {
-      throw new Error(
-        "STAGE3_NO_POST_ID"
-      );
-    }
-
-    // Deduplicate translator IDs before doing expensive CDN requests.
-    const translatorById =
-      new Map();
-
-    for (
-      const t of
-      extractTranslators(html)
-    ) {
-      if (
-        !translatorById.has(t.id)
-      ) {
-        translatorById.set(
-          t.id,
-          t
+      if (!title) {
+        throw new Error(
+          `STAGE1_NO_TITLE (tmdb=${tmdbId})`
         );
       }
-    }
 
-    let translators =
-      [...translatorById.values()]
-        .filter(
+      const candidates =
+        yield searchHdrezka(
+          title,
+          tmdb.originalTitle,
+          year,
+          mediaType
+        );
+
+      if (
+        candidates.length === 0
+      ) {
+        throw new Error(
+          `STAGE2_NO_CANDIDATES title=${title}`
+        );
+      }
+
+      const best =
+        candidates[0];
+
+      const pageUrl =
+        best.url.startsWith(
+          "http"
+        )
+          ? best.url
+          : `${BASE_URL}${best.url.startsWith("/") ? "" : "/"}${best.url}`;
+
+      const html =
+        yield fetchPage(
+          pageUrl
+        );
+
+      const {
+        postId,
+        translatorId:
+          defaultTranslatorId
+      } =
+        extractTranslatorAndId(
+          html,
+          mediaType
+        );
+
+      if (!postId) {
+        throw new Error(
+          "STAGE3_NO_POST_ID"
+        );
+      }
+
+      const translatorById =
+        new Map();
+
+      for (
+        const t
+        of extractTranslators(
+          html
+        )
+      ) {
+        if (
+          !translatorById.has(
+            t.id
+          )
+        ) {
+          translatorById.set(
+            t.id,
+            t
+          );
+        }
+      }
+
+      let translators =
+        [
+          ...translatorById.values()
+        ].filter(
           (t) =>
             isAllowedTranslator(
               t.name
             )
         );
 
-    if (
-      translators.length === 0 &&
-      defaultTranslatorId
-    ) {
-      translators = [
-        {
-          id:
-            defaultTranslatorId,
-          name:
-            "\u0414\u0443\u0431\u043b\u044f\u0436"
-        }
-      ];
-    }
-
-    if (
-      translators.length === 0
-    ) {
-      throw new Error(
-        "STAGE3_NO_TRANSLATOR"
-      );
-    }
-
-    // Original first.
-    // Everything else keeps HDRezka's page order.
-    translators.sort((a, b) => {
-      const ao =
-        isOriginalTranslator(a);
-
-      const bo =
-        isOriginalTranslator(b);
-
-      if (ao !== bo) {
-        return ao ? -1 : 1;
-      }
-
-      return 0;
-    });
-
-    const favs =
-      generateFavs();
-
-    const isTv =
-      mediaType === "tv" ||
-      mediaType === "anime";
-
-    const baseForm = {
-      id: postId,
-      action:
-        isTv
-          ? "get_stream"
-          : "get_movie"
-    };
-
-    if (isTv) {
-      baseForm.season =
-        season;
-
-      baseForm.episode =
-        episode;
-    }
-
-    const out = [];
-
-    const seenKeys =
-      /* @__PURE__ */ new Set();
-
-    /*
-     * Nuvio's plugin network bridge behaves effectively
-     * serially here. Instead of querying every translator,
-     * keep going until we have 8 WORKING translator groups.
-     *
-     * Failed, unavailable and premium-only translators do not
-     * count against the limit.
-     */
-    const MAX_SUCCESSFUL_TRANSLATORS =
-      8;
-
-    let successfulTranslatorCount =
-      0;
-
-    for (
-      let translatorIndex = 0;
-      translatorIndex <
-      translators.length;
-      translatorIndex++
-    ) {
       if (
-        successfulTranslatorCount >=
-        MAX_SUCCESSFUL_TRANSLATORS
+        translators.length === 0 &&
+        defaultTranslatorId
       ) {
-        break;
-      }
+        translators = [
+          {
+            id:
+              defaultTranslatorId,
 
-      const translator =
-        translators[
-          translatorIndex
+            name:
+              "\u0414\u0443\u0431\u043B\u044F\u0436"
+          }
         ];
-
-      let cdn;
-
-      try {
-        cdn =
-          yield postForm(
-            "/ajax/get_cdn_series/",
-            __spreadProps(
-              __spreadValues(
-                {},
-                baseForm
-              ),
-              {
-                translator_id:
-                  translator.id,
-                favs
-              }
-            )
-          );
-      } catch (e) {
-        console.error(
-          `[HDRezka] CDN failed for translator ${translator.name}: ${e.message}`
-        );
-
-        continue;
-      }
-
-      /*
-       * premium_content = 1 returns the short HDRezka Premium
-       * promotional clip rather than the actual film/episode.
-       */
-      if (
-        Number(
-          cdn.premium_content
-        ) > 0
-      ) {
-        console.log(
-          `[HDRezka] skipping premium translator: ${translator.name}`
-        );
-
-        continue;
       }
 
       if (
-        !cdn.success ||
-        !cdn.url
+        translators.length === 0
       ) {
-        continue;
+        throw new Error(
+          "STAGE3_NO_TRANSLATOR"
+        );
       }
 
-      const streams =
-        deobfuscateStreams(
-          cdn.url
-        );
+      translators.sort(
+        (a, b) => {
+          const ao =
+            isOriginalTranslator(
+              a
+            );
 
-      const subs =
-        parseSubtitles(
-          cdn.subtitle
-        );
+          const bo =
+            isOriginalTranslator(
+              b
+            );
 
-      const cleanSubs =
-        subs.map((s) => ({
-          id: s.url,
-          language: s.language,
-          lang: s.language,
-          label: s.language,
-          url: s.url,
-          type: "vtt",
-          hasCorsRestrictions:
-            false
-        }));
+          if (ao !== bo) {
+            return ao
+              ? -1
+              : 1;
+          }
 
-      const translatorRows =
-        [];
-
-      for (const s of streams) {
-        if (
-          !s.url ||
-          s.url === "null" ||
-          s.url.includes(":hls:")
-        ) {
-          continue;
+          return 0;
         }
-
-        const quality =
-          s.quality
-            .replace(
-              /<[^>]+>/g,
-              ""
-            )
-            .trim();
-
-        // Keep the old explicit premium/ultra quality-label filter too.
-        if (
-          /\bultra\b|\bprem\b/i
-            .test(quality)
-        ) {
-          continue;
-        }
-
-        const original =
-          isOriginalTranslator(
-            translator
-          );
-
-        const translatorLabel =
-          original
-            ? "Original"
-            : translator.name;
-
-        const dedupeKey =
-          `${translator.id}|${quality}`;
-
-        if (
-          seenKeys.has(
-            dedupeKey
-          )
-        ) {
-          continue;
-        }
-
-        seenKeys.add(
-          dedupeKey
-        );
-
-        translatorRows.push({
-          // No redundant "HDRezka" prefix.
-          name:
-            translatorLabel,
-
-          title:
-            formatStreamTitle(
-              title,
-              year,
-              mediaType,
-              season,
-              episode,
-              `${quality} \xB7 ${translatorLabel}`
-            ),
-
-          url:
-            s.url,
-
-          quality,
-
-          // Internal fields used only for ordering.
-          _original:
-            original,
-
-          _translatorIndex:
-            translatorIndex,
-
-          headers: {
-            Referer:
-              pageUrl,
-
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-          },
-
-          subtitles:
-            cleanSubs.length > 0
-              ? cleanSubs
-              : void 0,
-
-          type:
-            "mp4"
-        });
-      }
-
-      if (
-        translatorRows.length > 0
-      ) {
-        successfulTranslatorCount++;
-
-        out.push(
-          ...translatorRows
-        );
-      }
-    }
-
-    /*
-     * Translator first, quality second:
-     *
-     * Original 1080
-     * Original 720
-     * Original 480
-     * HDRezka Studio 1080
-     * HDRezka Studio 720
-     * HDRezka Studio 480
-     * TVShows 1080
-     * TVShows 720
-     * ...
-     */
-    out.sort((a, b) => {
-      if (
-        a._original !==
-        b._original
-      ) {
-        return a._original
-          ? -1
-          : 1;
-      }
-
-      if (
-        a._translatorIndex !==
-        b._translatorIndex
-      ) {
-        return (
-          a._translatorIndex -
-          b._translatorIndex
-        );
-      }
-
-      return (
-        parseQualityValue(
-          b.quality
-        ) -
-        parseQualityValue(
-          a.quality
-        )
       );
-    });
 
-    // Remove private ordering metadata before returning to Nuvio.
-    for (const s of out) {
-      delete s._original;
-      delete s._translatorIndex;
+      const favs =
+        generateFavs();
+
+      const isTv =
+        mediaType === "tv" ||
+        mediaType === "anime";
+
+      const baseForm = {
+        id: postId,
+
+        action:
+          isTv
+            ? "get_stream"
+            : "get_movie"
+      };
+
+      if (isTv) {
+        baseForm.season =
+          season;
+
+        baseForm.episode =
+          episode;
+      }
+
+      const out = [];
+
+      const seenKeys =
+        /* @__PURE__ */ new Set();
+
+      const MAX_SUCCESSFUL_TRANSLATORS =
+        8;
+
+      let successfulTranslatorCount =
+        0;
+
+      for (
+        let translatorIndex = 0;
+        translatorIndex <
+        translators.length;
+        translatorIndex++
+      ) {
+        if (
+          successfulTranslatorCount >=
+          MAX_SUCCESSFUL_TRANSLATORS
+        ) {
+          break;
+        }
+
+        const translator =
+          translators[
+            translatorIndex
+          ];
+
+        let cdn;
+
+        try {
+          cdn =
+            yield postForm(
+              "/ajax/get_cdn_series/",
+
+              __spreadProps(
+                __spreadValues(
+                  {},
+                  baseForm
+                ),
+
+                {
+                  translator_id:
+                    translator.id,
+
+                  favs
+                }
+              )
+            );
+        } catch (e) {
+          console.error(
+            `[HDRezka] CDN failed for translator ${translator.name}: ${e.message}`
+          );
+
+          continue;
+        }
+
+        if (
+          Number(
+            cdn.premium_content
+          ) > 0
+        ) {
+          console.log(
+            `[HDRezka] skipping premium translator: ${translator.name}`
+          );
+
+          continue;
+        }
+
+        if (
+          !cdn.success ||
+          !cdn.url
+        ) {
+          continue;
+        }
+
+        const streams =
+          deobfuscateStreams(
+            cdn.url
+          );
+
+        const subs =
+          parseSubtitles(
+            cdn.subtitle
+          );
+
+        const cleanSubs =
+          subs.map(
+            (s) => ({
+              id: s.url,
+              language: s.language,
+              lang: s.language,
+              label: s.language,
+              url: s.url,
+              type: "vtt",
+              hasCorsRestrictions:
+                false
+            })
+          );
+
+        const translatorRows =
+          [];
+
+        for (
+          const s
+          of streams
+        ) {
+          if (
+            !s.url ||
+            s.url === "null" ||
+            s.url.includes(
+              ":hls:"
+            )
+          ) {
+            continue;
+          }
+
+          const quality =
+            s.quality
+              .replace(
+                /<[^>]+>/g,
+                ""
+              )
+              .trim();
+
+          if (
+            /\bultra\b|\bprem\b|\b2160p?\b|\b4k\b|\buhd\b/i
+              .test(
+                quality
+              )
+          ) {
+            continue;
+          }
+
+          const original =
+            isOriginalTranslator(
+              translator
+            );
+
+          const translatorLabel =
+            original
+              ? "Original"
+              : translator.name;
+
+          const dedupeKey =
+            `${translator.id}|${quality}`;
+
+          if (
+            seenKeys.has(
+              dedupeKey
+            )
+          ) {
+            continue;
+          }
+
+          seenKeys.add(
+            dedupeKey
+          );
+
+          translatorRows.push({
+            name:
+              translatorLabel,
+
+            title:
+              formatStreamTitle(
+                title,
+                year,
+                mediaType,
+                season,
+                episode,
+                `${quality} \xB7 ${translatorLabel}`
+              ),
+
+            url:
+              s.url,
+
+            quality,
+
+            _original:
+              original,
+
+            _translatorIndex:
+              translatorIndex,
+
+            headers: {
+              Referer:
+                pageUrl,
+
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+
+            subtitles:
+              cleanSubs.length > 0
+                ? cleanSubs
+                : void 0,
+
+            type:
+              "mp4"
+          });
+        }
+
+        if (
+          translatorRows.length > 0
+        ) {
+          successfulTranslatorCount++;
+
+          out.push(
+            ...translatorRows
+          );
+        }
+      }
+
+      out.sort(
+        (a, b) => {
+          if (
+            a._original !==
+            b._original
+          ) {
+            return a._original
+              ? -1
+              : 1;
+          }
+
+          if (
+            a._translatorIndex !==
+            b._translatorIndex
+          ) {
+            return (
+              a._translatorIndex -
+              b._translatorIndex
+            );
+          }
+
+          return (
+            parseQualityValue(
+              b.quality
+            ) -
+            parseQualityValue(
+              a.quality
+            )
+          );
+        }
+      );
+
+      for (
+        const s
+        of out
+      ) {
+        delete s._original;
+        delete s._translatorIndex;
+      }
+
+      return out;
     }
-
-    return out;
-  });
+  );
 }
 
 function parseQualityValue(q) {
@@ -1633,221 +2014,256 @@ function formatStreamTitle(
   return base;
 }
 
-function resolveTmdbId(rawId, mediaType) {
-  return __async(this, null, function* () {
-    const idStr =
-      String(rawId).trim();
+function resolveTmdbId(
+  rawId,
+  mediaType
+) {
+  return __async(
+    this,
+    null,
+    function* () {
+      const idStr =
+        String(
+          rawId
+        ).trim();
 
-    if (/^\d+$/.test(idStr)) {
-      return {
-        id: idStr,
-        mediaType
-      };
+      if (
+        /^\d+$/.test(
+          idStr
+        )
+      ) {
+        return {
+          id:
+            idStr,
+
+          mediaType
+        };
+      }
+
+      const imdbMatch =
+        idStr.match(
+          /tt\d+/i
+        );
+
+      if (!imdbMatch) {
+        throw new Error(
+          `Unsupported TMDB/ID format: ${rawId}`
+        );
+      }
+
+      const imdbId =
+        imdbMatch[0];
+
+      const apiKey =
+        "439c478a771f35c05022f9feabcca01c";
+
+      const url =
+        `https://api.themoviedb.org/3/find/${imdbId}?api_key=${apiKey}&external_source=imdb_id`;
+
+      const data =
+        yield fetchJson(
+          url
+        );
+
+      const pick =
+        (
+          result,
+          type
+        ) => {
+          const isTv =
+            type === "tv";
+
+          const title =
+            isTv
+              ? result.name
+              : result.title;
+
+          const originalTitle =
+            isTv
+              ? result.original_name
+              : result.original_title;
+
+          const date =
+            isTv
+              ? result.first_air_date
+              : result.release_date;
+
+          return {
+            id:
+              String(
+                result.id
+              ),
+
+            mediaType:
+              type,
+
+            title,
+
+            originalTitle:
+              originalTitle ||
+              title,
+
+            year:
+              date
+                ? parseInt(
+                    date.substring(
+                      0,
+                      4
+                    ),
+                    10
+                  )
+                : null
+          };
+        };
+
+      const preferTv =
+        mediaType === "tv" ||
+        mediaType === "anime";
+
+      let chosen =
+        null;
+
+      if (preferTv) {
+        if (
+          data.tv_results &&
+          data.tv_results.length > 0
+        ) {
+          chosen =
+            pick(
+              data.tv_results[0],
+
+              data.tv_results[0].media_type ||
+              "tv"
+            );
+        } else if (
+          data.movie_results &&
+          data.movie_results.length > 0
+        ) {
+          chosen =
+            pick(
+              data.movie_results[0],
+              "movie"
+            );
+        }
+      } else {
+        if (
+          data.movie_results &&
+          data.movie_results.length > 0
+        ) {
+          chosen =
+            pick(
+              data.movie_results[0],
+              "movie"
+            );
+        } else if (
+          data.tv_results &&
+          data.tv_results.length > 0
+        ) {
+          chosen =
+            pick(
+              data.tv_results[0],
+
+              data.tv_results[0].media_type ||
+              "tv"
+            );
+        }
+      }
+
+      if (!chosen) {
+        throw new Error(
+          `IMDb ${imdbId} not found on TMDB`
+        );
+      }
+
+      return chosen;
     }
+  );
+}
 
-    const imdbMatch =
-      idStr.match(/tt\d+/i);
+function fetchTmdb(
+  tmdbId,
+  mediaType
+) {
+  return __async(
+    this,
+    null,
+    function* () {
+      const apiKey =
+        "439c478a771f35c05022f9feabcca01c";
 
-    if (!imdbMatch) {
-      throw new Error(
-        `Unsupported TMDB/ID format: ${rawId}`
-      );
-    }
+      const path =
+        mediaType === "tv" ||
+        mediaType === "anime"
+          ? "tv"
+          : "movie";
 
-    const imdbId =
-      imdbMatch[0];
+      const url =
+        `https://api.themoviedb.org/3/${path}/${tmdbId}?api_key=${apiKey}`;
 
-    const apiKey =
-      "439c478a771f35c05022f9feabcca01c";
+      try {
+        const data =
+          yield fetchJson(
+            url
+          );
 
-    const url =
-      `https://api.themoviedb.org/3/find/${imdbId}?api_key=${apiKey}&external_source=imdb_id`;
-
-    const data =
-      yield fetchJson(url);
-
-    const pick =
-      (result, type) => {
         const isTv =
-          type === "tv";
+          mediaType === "tv" ||
+          mediaType === "anime";
 
         const title =
           isTv
-            ? result.name
-            : result.title;
+            ? data.name
+            : data.title;
 
         const originalTitle =
           isTv
-            ? result.original_name
-            : result.original_title;
+            ? data.original_name
+            : data.original_title;
 
         const date =
           isTv
-            ? result.first_air_date
-            : result.release_date;
+            ? data.first_air_date
+            : data.release_date;
+
+        const year =
+          date
+            ? parseInt(
+                date.substring(
+                  0,
+                  4
+                ),
+                10
+              )
+            : null;
 
         return {
-          id:
-            String(result.id),
-
-          mediaType:
-            type,
-
           title,
 
           originalTitle:
             originalTitle ||
             title,
 
-          year:
-            date
-              ? parseInt(
-                  date.substring(
-                    0,
-                    4
-                  ),
-                  10
-                )
-              : null
+          originalLanguage:
+            data.original_language ||
+            null,
+
+          year
         };
-      };
+      } catch (e) {
+        console.error(
+          "[HDRezka] TMDB lookup failed:",
+          e.message
+        );
 
-    const preferTv =
-      mediaType === "tv" ||
-      mediaType === "anime";
-
-    let chosen =
-      null;
-
-    if (preferTv) {
-      if (
-        data.tv_results &&
-        data.tv_results.length > 0
-      ) {
-        chosen =
-          pick(
-            data.tv_results[0],
-            data.tv_results[0].media_type ||
-            "tv"
-          );
-      } else if (
-        data.movie_results &&
-        data.movie_results.length > 0
-      ) {
-        chosen =
-          pick(
-            data.movie_results[0],
-            "movie"
-          );
-      }
-    } else {
-      if (
-        data.movie_results &&
-        data.movie_results.length > 0
-      ) {
-        chosen =
-          pick(
-            data.movie_results[0],
-            "movie"
-          );
-      } else if (
-        data.tv_results &&
-        data.tv_results.length > 0
-      ) {
-        chosen =
-          pick(
-            data.tv_results[0],
-            data.tv_results[0].media_type ||
-            "tv"
-          );
+        return {
+          title: null,
+          originalTitle: null,
+          originalLanguage: null,
+          year: null
+        };
       }
     }
-
-    if (!chosen) {
-      throw new Error(
-        `IMDb ${imdbId} not found on TMDB`
-      );
-    }
-
-    return chosen;
-  });
-}
-
-function fetchTmdb(tmdbId, mediaType) {
-  return __async(this, null, function* () {
-    const apiKey =
-      "439c478a771f35c05022f9feabcca01c";
-
-    const path =
-      mediaType === "tv" ||
-      mediaType === "anime"
-        ? "tv"
-        : "movie";
-
-    const url =
-      `https://api.themoviedb.org/3/${path}/${tmdbId}?api_key=${apiKey}`;
-
-    try {
-      const data =
-        yield fetchJson(url);
-
-      const isTv =
-        mediaType === "tv" ||
-        mediaType === "anime";
-
-      const title =
-        isTv
-          ? data.name
-          : data.title;
-
-      const originalTitle =
-        isTv
-          ? data.original_name
-          : data.original_title;
-
-      const date =
-        isTv
-          ? data.first_air_date
-          : data.release_date;
-
-      const year =
-        date
-          ? parseInt(
-              date.substring(
-                0,
-                4
-              ),
-              10
-            )
-          : null;
-
-      return {
-        title,
-
-        originalTitle:
-          originalTitle ||
-          title,
-
-        originalLanguage:
-          data.original_language ||
-          null,
-
-        year
-      };
-    } catch (e) {
-      console.error(
-        "[HDRezka] TMDB lookup failed:",
-        e.message
-      );
-
-      return {
-        title: null,
-        originalTitle: null,
-        originalLanguage: null,
-        year: null
-      };
-    }
-  });
+  );
 }
 
 function encodeBase64(str) {
@@ -1904,7 +2320,8 @@ function decodeBase64Utf8(str) {
     const map =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-    const out2 = [];
+    const out2 =
+      [];
 
     let b = 0;
     let bits = 0;
@@ -1934,7 +2351,9 @@ function decodeBase64Utf8(str) {
 
       bits += 6;
 
-      if (bits >= 8) {
+      if (
+        bits >= 8
+      ) {
         bits -= 8;
 
         out2.push(
@@ -1971,7 +2390,9 @@ function decodeBase64Utf8(str) {
 
     if (c < 128) {
       out +=
-        String.fromCharCode(c);
+        String.fromCharCode(
+          c
+        );
     } else if (
       (c & 224) === 192
     ) {
@@ -2002,7 +2423,8 @@ function decodeBase64Utf8(str) {
         (bytes[i + 2] & 63) << 6 |
         bytes[i + 3] & 63;
 
-      code -= 65536;
+      code -=
+        65536;
 
       out +=
         String.fromCharCode(
@@ -2027,70 +2449,68 @@ function getStreams2(
   season,
   episode
 ) {
-  return __async(this, null, function* () {
-    try {
-      console.log(
-        `[HDRezka] ${mediaType} ${tmdbId} S${season != null ? season : "-"}E${episode != null ? episode : "-"}`
-      );
-
-      const streams =
-        yield getStreams(
-          tmdbId,
-          mediaType,
-          season,
-          episode
+  return __async(
+    this,
+    null,
+    function* () {
+      try {
+        console.log(
+          `[HDRezka] ${mediaType} ${tmdbId} S${season != null ? season : "-"}E${episode != null ? episode : "-"}`
         );
 
-      if (
-        streams.length > 0
-      ) {
-        return streams;
-      }
+        const streams =
+          yield getStreams(
+            tmdbId,
+            mediaType,
+            season,
+            episode
+          );
 
-      return [
-        {
-          name:
-            "HDRezka-DIAG",
-
-          title:
-            `DIAG tmdb=${tmdbId || "empty"} type=${mediaType || "empty"} S${season != null ? season : "-"}E${episode != null ? episode : "-"}`,
-
-          url:
-            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-
-          quality:
-            "diagnostic"
+        if (
+          streams.length > 0
+        ) {
+          return streams;
         }
-      ];
-    } catch (error) {
-      const msg =
-        `${error.message || error}`
-          .replace(
-            /\s+/g,
-            " "
+
+        return [];
+      } catch (error) {
+        const msg =
+          `${error.message || error}`
+            .replace(
+              /\s+/g,
+              " "
+            )
+            .trim();
+
+        console.error(
+          "[HDRezka] getStreams failed:",
+          msg
+        );
+
+        if (
+          msg.includes(
+            "STAGE3_NO_TRANSLATOR"
           )
-          .trim();
-
-      console.error(
-        "[HDRezka] getStreams failed:",
-        msg
-      );
-
-      return [
-        {
-          name:
-            `HDRezka-ERR: ${msg.slice(0, 70)}`,
-
-          title:
-            `ERR: ${msg}`,
-
-          url:
-            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-
-          quality:
-            `${mediaType} ${tmdbId} S${season != null ? season : "-"}E${episode != null ? episode : "-"}`
+        ) {
+          return [];
         }
-      ];
+
+        return [
+          {
+            name:
+              `HDRezka-ERR: ${msg.slice(0, 70)}`,
+
+            title:
+              `ERR: ${msg}`,
+
+            url:
+              "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+
+            quality:
+              `${mediaType} ${tmdbId} S${season != null ? season : "-"}E${episode != null ? episode : "-"}`
+          }
+        ];
+      }
     }
-  });
+  );
 }
