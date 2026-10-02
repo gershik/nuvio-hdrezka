@@ -142,10 +142,22 @@ function readSetCookies(response) {
 }
 function fetchWithTimeout(url, init, timeoutMs) {
   return __async(this, null, function* () {
+    if (
+      typeof setTimeout === "undefined" ||
+      typeof clearTimeout === "undefined" ||
+      typeof AbortController === "undefined"
+    ) {
+      return yield fetch(url, init);
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-      return yield fetch(url, __spreadProps(__spreadValues({}, init), { signal: controller.signal }));
+      return yield fetch(
+        url,
+        __spreadProps(__spreadValues({}, init), { signal: controller.signal })
+      );
     } finally {
       clearTimeout(timer);
     }
