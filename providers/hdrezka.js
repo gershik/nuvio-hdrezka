@@ -358,7 +358,7 @@ function rankCandidates(candidates, { title, originalTitle, year, mediaType }) {
     (s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
 
   const targetType =
-    mediaType === "tv" || mediaType === "anime" ? "tv" : "movie";
+    mediaType === "tv" || mediaType === "series" || mediaType === "anime" ? "tv" : "movie";
 
   const normalizedTargets = [title, originalTitle]
     .filter(Boolean)
