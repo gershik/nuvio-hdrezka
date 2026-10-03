@@ -2038,8 +2038,20 @@ function getStreams2(
 ) {
   return __async(this, null, function* () {
     try {
+      const originalMediaType = mediaType;
+
+      // Normalize Nuvio client inconsistencies.
+      // If it has season/episode coordinates, it is episodic even if
+      // the Apple client incorrectly labels it "movie".
+      if (
+        mediaType === "series" ||
+        (season != null && episode != null)
+      ) {
+        mediaType = "tv";
+      }
+
       console.log(
-        `[HDRezka] ${mediaType} ${tmdbId} S${season != null ? season : "-"}E${episode != null ? episode : "-"}`
+        `[HDRezka] input=${originalMediaType} normalized=${mediaType} ${tmdbId} S${season != null ? season : "-"}E${episode != null ? episode : "-"}`
       );
 
       const streams =
@@ -2049,7 +2061,6 @@ function getStreams2(
           season,
           episode
         );
-
       if (
         streams.length > 0
       ) {
