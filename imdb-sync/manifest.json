@@ -1,0 +1,39 @@
+{
+  "id": "community.nuvio.imdb-sync",
+  "version": "0.1.0",
+  "name": "IMDb Sync Metadata",
+  "description": "Code Geass metadata/catalog with the same IMDb identity used by NuvioTV. No streams or account access. More titles can be added to the snapshot.",
+  "types": [
+    "series"
+  ],
+  "resources": [
+    {
+      "name": "catalog",
+      "types": [
+        "series"
+      ]
+    },
+    {
+      "name": "meta",
+      "types": [
+        "series"
+      ],
+      "idPrefixes": [
+        "tt0994314",
+        "tmdb:31724"
+      ]
+    }
+  ],
+  "catalogs": [
+    {
+      "type": "series",
+      "id": "imdb-sync",
+      "name": "IMDb Sync — Series",
+      "extra": []
+    }
+  ],
+  "behaviorHints": {
+    "configurable": false,
+    "configurationRequired": false
+  }
+}
