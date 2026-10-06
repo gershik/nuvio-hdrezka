@@ -301,7 +301,7 @@ export function parseTranslatorsMeta(rawJson) {
  *
  * For TV shows we also accept season/episode.
  */
-export async function getStreams(tmdbId, mediaType, season, episode) {
+export async function getStreams(tmdbId, mediaType, season, episode, languageGroup = 'all') {
     // 1. Some Nuvio sources pass internal/external IDs like
     //    "meteor:media:imdb:tt0434706". Resolve those to a numeric TMDB ID.
     const resolved = await resolveTmdbId(tmdbId, mediaType);
@@ -341,7 +341,8 @@ export async function getStreams(tmdbId, mediaType, season, episode) {
         ...translator,
         name: isOriginalTranslator(translator.name) ? 'Original' : translator.name,
         isOriginal: isOriginalTranslator(translator.name),
-    }));
+    })).filter((translator) => translatorMatchesGroup(translator, languageGroup));
+    if (translators.length === 0) return [];
 
     const favs = generateFavs();
     const isTv = mediaType === 'tv' || mediaType === 'anime';
@@ -371,7 +372,7 @@ export async function getStreams(tmdbId, mediaType, season, episode) {
             return [];
         }
 
-        if (!cdn.success || !cdn.url) return [];
+        if (!cdn.success || !cdn.url || Number(cdn.premium_content) === 1) return [];
 
         const streams = deobfuscateStreams(cdn.url);
         const subs = parseSubtitles(cdn.subtitle);
@@ -389,7 +390,7 @@ export async function getStreams(tmdbId, mediaType, season, episode) {
         for (const s of streams) {
             if (!s.url || s.url === 'null' || s.url.includes(':hls:')) continue;
             const quality = s.quality.replace(/<[^>]+>/g, '').trim();
-            if (/\bultra\b|\bprem\b/i.test(quality)) continue;
+            if (/\b(?:2k|4k|ultra|prem(?:ium)?)\b/i.test(quality)) continue;
 
             const dedupeKey = `${translator.name}|${quality}`;
             if (seenKeys.has(dedupeKey)) continue;
@@ -458,6 +459,20 @@ function parseQualityValue(q) {
 
 function isOriginalTranslator(name) {
     return /(?:оригинал|original)/i.test(name || '');
+}
+
+function isEnglishTranslator(name) {
+    return /(?:английск|english|\ben\b)/i.test(name || '');
+}
+
+function translatorMatchesGroup(translator, languageGroup) {
+    if (languageGroup === 'en') {
+        return translator.isOriginal || isEnglishTranslator(translator.name);
+    }
+    if (languageGroup === 'ru') {
+        return !translator.isOriginal && !isEnglishTranslator(translator.name);
+    }
+    return true;
 }
 
 function formatStreamTitle(title, year, mediaType, season, episode, quality) {

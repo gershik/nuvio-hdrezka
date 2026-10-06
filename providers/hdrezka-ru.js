@@ -53,12 +53,12 @@ var __async = (__this, __arguments, generator) => {
   });
 };
 
-// src/hdrezka/index.js
-var hdrezka_exports = {};
-__export(hdrezka_exports, {
+// src/hdrezka-ru/index.js
+var hdrezka_ru_exports = {};
+__export(hdrezka_ru_exports, {
   getStreams: () => getStreams2
 });
-module.exports = __toCommonJS(hdrezka_exports);
+module.exports = __toCommonJS(hdrezka_ru_exports);
 
 // src/hdrezka/http.js
 var BASE_URL = "https://hdrezka.website";
@@ -1030,17 +1030,13 @@ function decodeBase64Utf8(str) {
   return out;
 }
 
-// src/hdrezka/index.js
+// src/hdrezka-ru/index.js
 function getStreams2(tmdbId, mediaType, season, episode) {
   return __async(this, null, function* () {
     try {
-      console.log(`[HDRezka] ${mediaType} ${tmdbId} S${season != null ? season : "-"}E${episode != null ? episode : "-"}`);
-      const streams = yield getStreams(tmdbId, mediaType, season, episode);
-      if (streams.length > 0) return streams;
-      return [];
+      return yield getStreams(tmdbId, mediaType, season, episode, "ru");
     } catch (error) {
-      const msg = `${error.message || error}`.replace(/\s+/g, " ").trim();
-      console.error("[HDRezka] getStreams failed:", msg);
+      console.error("[HDRezka Russian] getStreams failed:", (error == null ? void 0 : error.message) || error);
       return [];
     }
   });
