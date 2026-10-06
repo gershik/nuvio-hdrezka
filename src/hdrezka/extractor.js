@@ -337,6 +337,11 @@ export async function getStreams(tmdbId, mediaType, season, episode) {
         translators = [{ id: defaultTranslatorId, name: 'Дубляж' }];
     }
     if (translators.length === 0) throw new Error('STAGE3_NO_TRANSLATOR');
+    translators = translators.map((translator) => ({
+        ...translator,
+        name: isOriginalTranslator(translator.name) ? 'Original' : translator.name,
+        isOriginal: isOriginalTranslator(translator.name),
+    }));
 
     const favs = generateFavs();
     const isTv = mediaType === 'tv' || mediaType === 'anime';
@@ -409,6 +414,7 @@ export async function getStreams(tmdbId, mediaType, season, episode) {
                 },
                 subtitles: cleanSubs.length > 0 ? cleanSubs : undefined,
                 type: 'mp4',
+                isOriginal: translator.isOriginal,
             });
         }
         return translatorRows;
@@ -417,16 +423,15 @@ export async function getStreams(tmdbId, mediaType, season, episode) {
 
 
     out.sort((a, b) => {
+        if (a.isOriginal !== b.isOriginal) return a.isOriginal ? -1 : 1;
         const aq = parseQualityValue(a.quality);
         const bq = parseQualityValue(b.quality);
         if (aq !== bq) return bq - aq;
         return a.name.localeCompare(b.name);
     });
 
-    // Nuvio sorts the list by the bold `name` field. The name starts with
-    // "HDRezka ·", so the first differing character is the digit in the
-    // quality, which sorts "1080p" before "360p". Prefix the name with a
-    // descending quality rank so the on-device sort matches our intended order.
+    // Nuvio sorts by the bold `name`, so encode translator priority first and
+    // quality second. This keeps every Original option above dubbed streams.
     const uniqueQualities = [...new Set(out.map((s) => s.quality))].sort(
         (a, b) => parseQualityValue(b) - parseQualityValue(a)
     );
@@ -435,16 +440,24 @@ export async function getStreams(tmdbId, mediaType, season, episode) {
         uniqueQualities.map((q, i) => [q, String(i + 1).padStart(padLen, '0')])
     );
     for (const s of out) {
-        const rank = qualityRank.get(s.quality);
-        s.name = `${rank}. ${s.name}`;
+        const translatorRank = s.isOriginal ? '00' : '01';
+        const quality = qualityRank.get(s.quality);
+        s.name = `${translatorRank}.${quality} ${s.name}`;
+        delete s.isOriginal;
     }
 
     return out;
 }
 
 function parseQualityValue(q) {
+    if (/\b4k\b/i.test(q)) return 2160;
+    if (/\b2k\b/i.test(q)) return 1440;
     const m = q.match(/(\d+)/);
     return m ? parseInt(m[1], 10) : 0;
+}
+
+function isOriginalTranslator(name) {
+    return /(?:оригинал|original)/i.test(name || '');
 }
 
 function formatStreamTitle(title, year, mediaType, season, episode, quality) {

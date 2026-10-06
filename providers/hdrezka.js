@@ -225,21 +225,23 @@ function searchHdrezka(title, originalTitle, year, mediaType) {
       queries.push(q);
       if (year) queries.push(`${q} ${year}`);
     }
-    for (const query of queries) {
+    const resultGroups = yield Promise.all(queries.map((query) => __async(this, null, function* () {
       const url = `${BASE_URL}/engine/ajax/search.php?q=${encodeURIComponent(query)}`;
-      let html;
       try {
-        html = yield fetchText(url, {
+        const html = yield fetchText(url, {
           headers: {
             "X-Requested-With": "XMLHttpRequest",
             "Referer": `${BASE_URL}/`
           }
         });
+        return parseSearchHtml(html);
       } catch (e) {
         console.error(`[HDRezka] search failed for "${query}": ${e.message}`);
-        continue;
+        return [];
       }
-      for (const c of parseSearchHtml(html)) {
+    })));
+    for (const candidates of resultGroups) {
+      for (const c of candidates) {
         if (!seenUrls.has(c.url)) {
           seenUrls.add(c.url);
           all.push(c);
@@ -775,6 +777,10 @@ function getStreams(tmdbId, mediaType, season, episode) {
       translators = [{ id: defaultTranslatorId, name: "\u0414\u0443\u0431\u043B\u044F\u0436" }];
     }
     if (translators.length === 0) throw new Error("STAGE3_NO_TRANSLATOR");
+    translators = translators.map((translator) => __spreadProps(__spreadValues({}, translator), {
+      name: isOriginalTranslator(translator.name) ? "Original" : translator.name,
+      isOriginal: isOriginalTranslator(translator.name)
+    }));
     const favs = generateFavs();
     const isTv = mediaType === "tv" || mediaType === "anime";
     const baseForm = {
@@ -835,13 +841,15 @@ function getStreams(tmdbId, mediaType, season, episode) {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
           },
           subtitles: cleanSubs.length > 0 ? cleanSubs : void 0,
-          type: "mp4"
+          type: "mp4",
+          isOriginal: translator.isOriginal
         });
       }
       return translatorRows;
     })));
     for (const rowList of rows) out.push(...rowList);
     out.sort((a, b) => {
+      if (a.isOriginal !== b.isOriginal) return a.isOriginal ? -1 : 1;
       const aq = parseQualityValue(a.quality);
       const bq = parseQualityValue(b.quality);
       if (aq !== bq) return bq - aq;
@@ -855,15 +863,22 @@ function getStreams(tmdbId, mediaType, season, episode) {
       uniqueQualities.map((q, i) => [q, String(i + 1).padStart(padLen, "0")])
     );
     for (const s of out) {
-      const rank = qualityRank.get(s.quality);
-      s.name = `${rank}. ${s.name}`;
+      const translatorRank = s.isOriginal ? "00" : "01";
+      const quality = qualityRank.get(s.quality);
+      s.name = `${translatorRank}.${quality} ${s.name}`;
+      delete s.isOriginal;
     }
     return out;
   });
 }
 function parseQualityValue(q) {
+  if (/\b4k\b/i.test(q)) return 2160;
+  if (/\b2k\b/i.test(q)) return 1440;
   const m = q.match(/(\d+)/);
   return m ? parseInt(m[1], 10) : 0;
+}
+function isOriginalTranslator(name) {
+  return /(?:оригинал|original)/i.test(name || "");
 }
 function formatStreamTitle(title, year, mediaType, season, episode, quality) {
   const base = `${title}${year ? ` (${year})` : ""} ${quality}`;

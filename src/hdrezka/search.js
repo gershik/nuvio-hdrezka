@@ -34,22 +34,24 @@ export async function searchHdrezka(title, originalTitle, year, mediaType) {
         if (year) queries.push(`${q} ${year}`);
     }
 
-    for (const query of queries) {
+    const resultGroups = await Promise.all(queries.map(async (query) => {
         const url = `${BASE_URL}/engine/ajax/search.php?q=${encodeURIComponent(query)}`;
-        let html;
         try {
-            html = await fetchText(url, {
+            const html = await fetchText(url, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Referer': `${BASE_URL}/`,
                 },
             });
+            return parseSearchHtml(html);
         } catch (e) {
             console.error(`[HDRezka] search failed for "${query}": ${e.message}`);
-            continue;
+            return [];
         }
+    }));
 
-        for (const c of parseSearchHtml(html)) {
+    for (const candidates of resultGroups) {
+        for (const c of candidates) {
             if (!seenUrls.has(c.url)) {
                 seenUrls.add(c.url);
                 all.push(c);
