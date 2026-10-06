@@ -53,12 +53,8 @@ async function main() {
     const minify = args.includes('--minify');
     if (!fs.existsSync(outDir)) fs.mkdirSync(outDir);
 
-    const providers = ['hdrezka', 'hdrezka-en', 'hdrezka-ru'];
-    const results = [];
-    for (const provider of providers) {
-        results.push(await buildProvider(provider, { minify }));
-    }
-    process.exit(results.every(Boolean) ? 0 : 1);
+    const ok = await buildProvider('hdrezka', { minify });
+    process.exit(ok ? 0 : 1);
 }
 
 main();
