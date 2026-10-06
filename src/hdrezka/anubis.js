@@ -55,7 +55,9 @@ export async function solveChallenge(challenge) {
     const base = challenge.randomData;
     let nonce = 0;
     while (true) {
-        const hash = await sha256Hex(base + nonce.toString());
+        // sha256Hex is synchronous. Awaiting it created one Promise/microtask
+        // per nonce, which is especially expensive in Nuvio's Hermes runtime.
+        const hash = sha256Hex(base + nonce.toString());
         if (hash.startsWith(target)) {
             return {
                 id: challenge.id,

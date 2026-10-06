@@ -28,27 +28,39 @@ export async function searchHdrezka(title, originalTitle, year, mediaType) {
         title,
     ].filter(Boolean);
 
-    const queries = [];
+    const primaryQueries = [];
     for (const q of baseQueries) {
-        queries.push(q);
-        if (year) queries.push(`${q} ${year}`);
+        primaryQueries.push(year ? `${q} ${year}` : q);
     }
 
-    const resultGroups = await Promise.all(queries.map(async (query) => {
-        const url = `${BASE_URL}/engine/ajax/search.php?q=${encodeURIComponent(query)}`;
-        try {
-            const html = await fetchText(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Referer': `${BASE_URL}/`,
-                },
-            });
-            return parseSearchHtml(html);
-        } catch (e) {
-            console.error(`[HDRezka] search failed for "${query}": ${e.message}`);
-            return [];
-        }
-    }));
+    // Localized and original titles are often identical. Avoid issuing the
+    // same HDRezka request two or four times on every lookup.
+    const uniquePrimary = [...new Set(primaryQueries)];
+
+    const fetchQueries = async (queries) => {
+        return await Promise.all(queries.map(async (query) => {
+            const url = `${BASE_URL}/engine/ajax/search.php?q=${encodeURIComponent(query)}`;
+            try {
+                const html = await fetchText(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Referer': `${BASE_URL}/`,
+                    },
+                });
+                return parseSearchHtml(html);
+            } catch (e) {
+                console.error(`[HDRezka] search failed for "${query}": ${e.message}`);
+                return [];
+            }
+        }));
+    };
+
+    let resultGroups = await fetchQueries(uniquePrimary);
+    // Some obscure titles are indexed only without the year. Use the broader
+    // searches only as a fallback instead of paying for them every time.
+    if (resultGroups.every((group) => group.length === 0) && year) {
+        resultGroups = await fetchQueries([...new Set(baseQueries)]);
+    }
 
     for (const candidates of resultGroups) {
         for (const c of candidates) {

@@ -28,7 +28,7 @@ import {
  * Fetch a page, transparently solving Anubis on the first attempt.
  * Returns the actual page HTML or throws.
  */
-async function fetchPage(url) {
+async function fetchPage(url, refetchAfterChallenge = true) {
     const html = await fetchText(url);
     const challenge = parseAnubisChallenge(html);
     if (!challenge) return html;
@@ -36,7 +36,7 @@ async function fetchPage(url) {
     const t0 = Date.now();
     const solution = await solveChallenge(challenge);
     await submitChallenge(solution, url, t0);
-    return await fetchText(url);
+    return refetchAfterChallenge ? await fetchText(url) : null;
 }
 
 /**
@@ -328,11 +328,24 @@ export async function getStreams(tmdbId, mediaType, season, episode, languageGro
         : `${BASE_URL}${best.url.startsWith('/') ? '' : '/'}${best.url}`;
 
     // 3. Load the page to harvest the translator list and post ID.
-    const html = await fetchPage(pageUrl);
-    const { postId, translatorId: defaultTranslatorId } = extractTranslatorAndId(html, mediaType);
+    // The fast English path already knows the post ID from search and the
+    // Original translator ID (238). It only needs Anubis authorization, not a
+    // second full page download after the challenge has been solved.
+    const fastEnglish = languageGroup === 'en' && !!best.id;
+    const html = await fetchPage(pageUrl, !fastEnglish);
+    let postId;
+    let defaultTranslatorId;
+    if (fastEnglish && html === null) {
+        postId = best.id;
+        defaultTranslatorId = '238';
+    } else {
+        ({ postId, translatorId: defaultTranslatorId } = extractTranslatorAndId(html, mediaType));
+    }
     if (!postId) throw new Error('STAGE3_NO_POST_ID');
 
-    let translators = extractTranslators(html).filter((t) => isAllowedTranslator(t.name));
+    let translators = html
+        ? extractTranslators(html).filter((t) => isAllowedTranslator(t.name))
+        : [{ id: '238', name: 'Original' }];
     if (translators.length === 0 && defaultTranslatorId) {
         translators = [{ id: defaultTranslatorId, name: 'Дубляж' }];
     }

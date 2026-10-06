@@ -1,13 +1,13 @@
 {
   "id": "nuvio-hdrezka",
   "name": "HDRezka",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "scrapers": [
     {
       "id": "hdrezka-en",
       "name": "HDRezka English",
       "description": "Fast Original and English HDRezka streams.",
-      "version": "0.1.8",
+      "version": "0.1.9",
       "author": "justchokingaround",
       "supportedTypes": ["movie", "tv"],
       "filename": "providers/hdrezka-en.js",
@@ -23,7 +23,7 @@
       "id": "hdrezka-ru",
       "name": "HDRezka Russian",
       "description": "Russian HDRezka dubbed streams, loaded independently.",
-      "version": "0.1.8",
+      "version": "0.1.9",
       "author": "justchokingaround",
       "supportedTypes": ["movie", "tv"],
       "filename": "providers/hdrezka-ru.js",

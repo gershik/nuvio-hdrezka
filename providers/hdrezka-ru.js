@@ -220,26 +220,32 @@ function searchHdrezka(title, originalTitle, year, mediaType) {
       originalTitle,
       title
     ].filter(Boolean);
-    const queries = [];
+    const primaryQueries = [];
     for (const q of baseQueries) {
-      queries.push(q);
-      if (year) queries.push(`${q} ${year}`);
+      primaryQueries.push(year ? `${q} ${year}` : q);
     }
-    const resultGroups = yield Promise.all(queries.map((query) => __async(this, null, function* () {
-      const url = `${BASE_URL}/engine/ajax/search.php?q=${encodeURIComponent(query)}`;
-      try {
-        const html = yield fetchText(url, {
-          headers: {
-            "X-Requested-With": "XMLHttpRequest",
-            "Referer": `${BASE_URL}/`
-          }
-        });
-        return parseSearchHtml(html);
-      } catch (e) {
-        console.error(`[HDRezka] search failed for "${query}": ${e.message}`);
-        return [];
-      }
-    })));
+    const uniquePrimary = [...new Set(primaryQueries)];
+    const fetchQueries = (queries) => __async(this, null, function* () {
+      return yield Promise.all(queries.map((query) => __async(this, null, function* () {
+        const url = `${BASE_URL}/engine/ajax/search.php?q=${encodeURIComponent(query)}`;
+        try {
+          const html = yield fetchText(url, {
+            headers: {
+              "X-Requested-With": "XMLHttpRequest",
+              "Referer": `${BASE_URL}/`
+            }
+          });
+          return parseSearchHtml(html);
+        } catch (e) {
+          console.error(`[HDRezka] search failed for "${query}": ${e.message}`);
+          return [];
+        }
+      })));
+    });
+    let resultGroups = yield fetchQueries(uniquePrimary);
+    if (resultGroups.every((group) => group.length === 0) && year) {
+      resultGroups = yield fetchQueries([...new Set(baseQueries)]);
+    }
     for (const candidates of resultGroups) {
       for (const c of candidates) {
         if (!seenUrls.has(c.url)) {
@@ -513,7 +519,7 @@ function solveChallenge(challenge) {
     const base = challenge.randomData;
     let nonce = 0;
     while (true) {
-      const hash = yield sha256Hex(base + nonce.toString());
+      const hash = sha256Hex(base + nonce.toString());
       if (hash.startsWith(target)) {
         return {
           id: challenge.id,
@@ -566,7 +572,7 @@ function submitChallenge(_0, _1, _2) {
 }
 
 // src/hdrezka/extractor.js
-function fetchPage(url) {
+function fetchPage(url, refetchAfterChallenge = true) {
   return __async(this, null, function* () {
     const html = yield fetchText(url);
     const challenge = parseAnubisChallenge(html);
@@ -575,7 +581,7 @@ function fetchPage(url) {
     const t0 = Date.now();
     const solution = yield solveChallenge(challenge);
     yield submitChallenge(solution, url, t0);
-    return yield fetchText(url);
+    return refetchAfterChallenge ? yield fetchText(url) : null;
   });
 }
 function extractTranslatorAndId(html, mediaType) {
@@ -769,10 +775,18 @@ function getStreams(tmdbId, mediaType, season, episode, languageGroup = "all") {
     if (candidates.length === 0) throw new Error(`STAGE2_NO_CANDIDATES title=${title}`);
     const best = candidates[0];
     const pageUrl = best.url.startsWith("http") ? best.url : `${BASE_URL}${best.url.startsWith("/") ? "" : "/"}${best.url}`;
-    const html = yield fetchPage(pageUrl);
-    const { postId, translatorId: defaultTranslatorId } = extractTranslatorAndId(html, mediaType);
+    const fastEnglish = languageGroup === "en" && !!best.id;
+    const html = yield fetchPage(pageUrl, !fastEnglish);
+    let postId;
+    let defaultTranslatorId;
+    if (fastEnglish && html === null) {
+      postId = best.id;
+      defaultTranslatorId = "238";
+    } else {
+      ({ postId, translatorId: defaultTranslatorId } = extractTranslatorAndId(html, mediaType));
+    }
     if (!postId) throw new Error("STAGE3_NO_POST_ID");
-    let translators = extractTranslators(html).filter((t) => isAllowedTranslator(t.name));
+    let translators = html ? extractTranslators(html).filter((t) => isAllowedTranslator(t.name)) : [{ id: "238", name: "Original" }];
     if (translators.length === 0 && defaultTranslatorId) {
       translators = [{ id: defaultTranslatorId, name: "\u0414\u0443\u0431\u043B\u044F\u0436" }];
     }
