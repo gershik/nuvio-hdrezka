@@ -84,8 +84,16 @@ export async function submitChallenge({ id, nonce, response, difficulty }, redir
     const url = `${BASE_URL}${PASS_PATH}?${parts.join('&')}`;
 
     const host = hostFromUrl(redirUrl);
-    const testCookieValue = cookieJar.get(host)?.['techaro.lol-anubis-cookie-verification'];
-    const testCookie = testCookieValue ? `techaro.lol-anubis-cookie-verification=${testCookieValue}` : null;
+    // Anubis 1.27 suffixes cookie names per deployment (for example
+    // `techaro.lol-anubis-cookie-verification-d82da6a5`). Do not hard-code
+    // the old unsuffixed name.
+    const jar = cookieJar.get(host) || {};
+    const verificationEntry = Object.entries(jar).find(([name]) =>
+        name.includes('anubis-cookie-verification')
+    );
+    const testCookie = verificationEntry
+        ? `${verificationEntry[0]}=${verificationEntry[1]}`
+        : null;
     const headers = {
         ...HEADERS,
         ...(testCookie ? { Cookie: testCookie } : {}),
@@ -105,7 +113,10 @@ export async function submitChallenge({ id, nonce, response, difficulty }, redir
         if (header) setCookies.push(header);
     }
 
-    const verify = setCookies.find((c) => c.includes('anubis-auth='));
+    const verify = setCookies.find((c) => /anubis-auth(?:-[^=;]+)?=/.test(c));
+    if (!verify) {
+        throw new Error(`Anubis verification failed (HTTP ${res.status})`);
+    }
     // Store the cookie in the shared jar so subsequent requests on the
     // same host send it back.
     const cookie = verify.split(';')[0];
