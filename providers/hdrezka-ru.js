@@ -1034,6 +1034,7 @@ function decodeBase64Utf8(str) {
 function getStreams2(tmdbId, mediaType, season, episode) {
   return __async(this, null, function* () {
     try {
+      yield new Promise((resolve) => setTimeout(resolve, 900));
       return yield getStreams(tmdbId, mediaType, season, episode, "ru");
     } catch (error) {
       console.error("[HDRezka Russian] getStreams failed:", (error == null ? void 0 : error.message) || error);
