@@ -32,7 +32,7 @@ Active mirror: **hdrezka.website**.
 Paste this URL into **Nuvio → Settings → Plugins → Add Repository** and enable **HDRezka**:
 
 ```
-https://raw.githubusercontent.com/justchokingaround/nuvio-hdrezka/main/manifest.json
+https://raw.githubusercontent.com/gershik/nuvio-hdrezka/main/manifest.json
 ```
 
 ## Use on Stremio / TV

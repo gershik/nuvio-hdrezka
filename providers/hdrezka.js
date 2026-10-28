@@ -124,24 +124,29 @@ function generateFavs() {
   ].join("-");
 }
 function readSetCookies(response) {
-  var _a, _b;
-  const out = [];
-  const list = ((_b = (_a = response.headers).getSetCookie) == null ? void 0 : _b.call(_a)) || [];
-  for (const c of list) {
-    out.push(c.split(";")[0]);
+  const headers = response && response.headers;
+  if (!headers) return [];
+  const raw = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
+  let values = Array.isArray(raw) ? raw : typeof raw === "string" ? [raw] : [];
+  values = values.filter((value) => typeof value === "string" && value);
+  if (values.length === 0 && typeof headers.get === "function") {
+    const combined = headers.get("set-cookie");
+    if (typeof combined === "string" && combined) values = [combined];
   }
-  if (out.length === 0) {
-    const header = response.headers.get("set-cookie");
-    if (header) {
-      for (const c of header.split(/,(?=[^;]+=[^;]+)/)) {
-        out.push(c.split(";")[0]);
-      }
+  const out = [];
+  for (const value of values) {
+    for (const cookie of value.split(/,(?=\s*[^=;,\s]+\s*=)/)) {
+      const pair = cookie.split(";")[0].trim();
+      if (pair.indexOf("=") > 0) out.push(pair);
     }
   }
   return out;
 }
 function fetchWithTimeout(url, init, timeoutMs) {
   return __async(this, null, function* () {
+    if (typeof setTimeout !== "function" || typeof clearTimeout !== "function" || typeof AbortController !== "function") {
+      return fetch(url, init);
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -534,7 +539,6 @@ function solveChallenge(challenge) {
 }
 function submitChallenge(_0, _1, _2) {
   return __async(this, arguments, function* ({ id, nonce, response, difficulty }, redirUrl, t0) {
-    var _a, _b;
     const elapsedTime = ((Date.now() - t0) / 1e3).toFixed(3);
     const parts = [
       `id=${encodeURIComponent(id)}`,
@@ -556,16 +560,11 @@ function submitChallenge(_0, _1, _2) {
       headers,
       redirect: "manual"
     });
-    const setCookies = ((_b = (_a = res.headers).getSetCookie) == null ? void 0 : _b.call(_a)) || [];
-    if (setCookies.length === 0) {
-      const header = res.headers.get("set-cookie");
-      if (header) setCookies.push(header);
-    }
-    const verify = setCookies.find((c) => /anubis-auth(?:-[^=;]+)?=/.test(c));
-    if (!verify) {
+    const setCookies = readSetCookies(res);
+    const cookie = setCookies.find((pair) => /anubis-auth(?:-[^=;]+)?=.+$/.test(pair));
+    if (!cookie) {
       throw new Error(`Anubis verification failed (HTTP ${res.status})`);
     }
-    const cookie = verify.split(";")[0];
     jarSet(hostFromUrl(redirUrl), [cookie]);
     return cookie;
   });

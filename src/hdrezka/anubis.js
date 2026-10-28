@@ -18,7 +18,7 @@
  * via 302 redirect, and bounces to `redir`.
  */
 
-import { HEADERS, BASE_URL, jarSet, hostFromUrl, cookieJar } from './http.js';
+import { HEADERS, BASE_URL, jarSet, hostFromUrl, cookieJar, readSetCookies } from './http.js';
 import { sha256Hex } from './sha256.js';
 
 const ANUBIS_BASE = '/.within.website/x/cmd/anubis';
@@ -108,20 +108,11 @@ export async function submitChallenge({ id, nonce, response, difficulty }, redir
     // The flow is: 302 redirect with Set-Cookie. We need the cookie, not the
 
     // redirect target.
-    const setCookies = res.headers.getSetCookie?.() || [];
-    if (setCookies.length === 0) {
-        // Fallback: parse a single Set-Cookie header
-        const header = res.headers.get('set-cookie');
-        if (header) setCookies.push(header);
-    }
-
-    const verify = setCookies.find((c) => /anubis-auth(?:-[^=;]+)?=/.test(c));
-    if (!verify) {
+    const setCookies = readSetCookies(res);
+    const cookie = setCookies.find((pair) => /anubis-auth(?:-[^=;]+)?=.+$/.test(pair));
+    if (!cookie) {
         throw new Error(`Anubis verification failed (HTTP ${res.status})`);
     }
-    // Store the cookie in the shared jar so subsequent requests on the
-    // same host send it back.
-    const cookie = verify.split(';')[0];
     jarSet(hostFromUrl(redirUrl), [cookie]);
     return cookie;
 }

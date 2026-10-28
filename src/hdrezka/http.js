@@ -112,22 +112,28 @@ export function generateFavs() {
 /**
  * Extract "name=value" pairs from Set-Cookie headers.
  */
-function readSetCookies(response) {
-    const out = [];
-    const list = response.headers.getSetCookie?.() || [];
-    for (const c of list) {
-        out.push(c.split(';')[0]);
+export function readSetCookies(response) {
+    const headers = response && response.headers;
+    if (!headers) return [];
+    const raw = typeof headers.getSetCookie === 'function' ? headers.getSetCookie() : [];
+    let values = Array.isArray(raw) ? raw : typeof raw === 'string' ? [raw] : [];
+    values = values.filter((value) => typeof value === 'string' && value);
+    if (values.length === 0 && typeof headers.get === 'function') {
+        const combined = headers.get('set-cookie');
+        if (typeof combined === 'string' && combined) values = [combined];
     }
-    if (out.length === 0) {
-        const header = response.headers.get('set-cookie');
-        if (header) {
-            for (const c of header.split(/,(?=[^;]+=[^;]+)/)) {
-                out.push(c.split(';')[0]);
-            }
+    const out = [];
+    for (const value of values) {
+        // Nuvio TV exposes one combined header, while Node returns an array.
+        // A comma inside an Expires date is not a cookie boundary.
+        for (const cookie of value.split(/,(?=\s*[^=;,\s]+\s*=)/)) {
+            const pair = cookie.split(';')[0].trim();
+            if (pair.indexOf('=') > 0) out.push(pair);
         }
     }
     return out;
 }
+
 export { BASE_URL, HEADERS, cookieJar, jarSet, jarCookieHeader, hostFromUrl };
 
 
@@ -136,6 +142,11 @@ export { BASE_URL, HEADERS, cookieJar, jarSet, jarCookieHeader, hostFromUrl };
  * hang the addon request forever (Nuvio/TV clients give up quickly).
  */
 async function fetchWithTimeout(url, init, timeoutMs) {
+    // Nuvio TV's QuickJS bridge has native HTTP timeouts but no JS timers.
+    if (typeof setTimeout !== 'function' || typeof clearTimeout !== 'function'
+        || typeof AbortController !== 'function') {
+        return fetch(url, init);
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
