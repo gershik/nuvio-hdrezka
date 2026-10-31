@@ -116,3 +116,9 @@ Submission: `GET /.within.website/x/cmd/anubis/api/pass-challenge?id=<id>&respon
 - Dead domains: `hdrezka.ag`, `hdrezka-home.tv`.
 - `X-Hdrezka-Android-App` bypass headers now trigger `403` on `hdrezka.website`.
 - Search endpoint still works without Anubis; the main work is solving Anubis for page/CDN access.
+
+### Shows split across separate season pages
+
+For TV seasons absent from the initially matched page, the provider examines HDRezka's own linked franchise entries. It accepts an explicitly numbered season title matching the series name, checks its release year against the canonical TMDB season, and verifies the requested episode on the destination page. It sends that page's post ID and local season number to HDRezka, while keeping the catalog season/episode in Nuvio's stream title.
+
+Franchise positions are not treated as seasons: films, spin-offs, and documentaries are excluded. Normal multi-season pages continue using their advertised season tabs, including lazily loaded episode lists. Missing, conflicting, or ambiguous split-season metadata returns no streams rather than guessing. This is a general resolver with no title-specific ID table; unrelated titles without explicit linked season metadata require additional evidence and are not automatically remapped.

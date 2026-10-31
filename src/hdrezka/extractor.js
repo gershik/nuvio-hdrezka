@@ -18,6 +18,7 @@
 
 import { BASE_URL, fetchText, postForm, fetchJson, generateFavs } from './http.js';
 import { searchHdrezka } from './search.js';
+import { pageEpisodes, pageSeasons, linkedSeasonPages, episodeOnSplitPage } from './seasons.js';
 import {
     parseAnubisChallenge,
     solveChallenge,
@@ -323,7 +324,7 @@ export async function getStreams(tmdbId, mediaType, season, episode, languageGro
     if (candidates.length === 0) throw new Error(`STAGE2_NO_CANDIDATES title=${title}`);
 
     const best = candidates[0];
-    const pageUrl = best.url.startsWith('http')
+    let pageUrl = best.url.startsWith('http')
         ? best.url
         : `${BASE_URL}${best.url.startsWith('/') ? '' : '/'}${best.url}`;
 
@@ -331,8 +332,32 @@ export async function getStreams(tmdbId, mediaType, season, episode, languageGro
     // The fast English path already knows the post ID from search and the
     // Original translator ID (238). It only needs Anubis authorization, not a
     // second full page download after the challenge has been solved.
-    const fastEnglish = languageGroup === 'en' && !!best.id;
-    const html = await fetchPage(pageUrl, !fastEnglish);
+    const isTv = mediaType === 'tv' || mediaType === 'anime';
+    const fastEnglish = languageGroup === 'en' && !!best.id && !isTv;
+    let html = await fetchPage(pageUrl, !fastEnglish);
+    let sourceSeason = season;
+    if (isTv && html) {
+        const requestedSeason = Number(season), requestedEpisode = Number(episode);
+        const layout = pageEpisodes(html);
+        if (pageSeasons(html).has(requestedSeason)) {
+            if (layout.has(requestedSeason) && !layout.get(requestedSeason).has(requestedEpisode)) return [];
+        } else {
+            let linked = linkedSeasonPages(html, [best.title, title, tmdb.originalTitle], requestedSeason);
+            // Only cross a page boundary with an explicit season number and season metadata.
+            if (!linked.length) return [];
+            const details = tmdb.seasons ? tmdb : await fetchTmdb(tmdbId, mediaType);
+            const meta = (details.seasons || []).find((s) => s.season_number === requestedSeason);
+            if (!meta) return [];
+            const seasonYear = meta.air_date ? Number(meta.air_date.slice(0, 4)) : null;
+            linked = linked.filter((p) => !seasonYear || p.year === seasonYear);
+            if (linked.length !== 1) return [];
+            pageUrl = BASE_URL + linked[0].path;
+            html = await fetchPage(pageUrl);
+            sourceSeason = episodeOnSplitPage(html, requestedSeason, requestedEpisode, meta.episode_count);
+            if (sourceSeason === null) return [];
+            console.log(`[HDRezka] mapped S${season}E${episode} to ${linked[0].title}, local S${sourceSeason}E${episode}`);
+        }
+    }
     let postId;
     let defaultTranslatorId;
     if (fastEnglish && html === null) {
@@ -358,13 +383,12 @@ export async function getStreams(tmdbId, mediaType, season, episode, languageGro
     if (translators.length === 0) return [];
 
     const favs = generateFavs();
-    const isTv = mediaType === 'tv' || mediaType === 'anime';
     const baseForm = {
         id: postId,
         action: isTv ? 'get_stream' : 'get_movie',
     };
     if (isTv) {
-        baseForm.season = season;
+        baseForm.season = sourceSeason;
         baseForm.episode = episode;
     }
 
@@ -573,6 +597,7 @@ async function fetchTmdb(tmdbId, mediaType) {
             title,
             originalTitle: originalTitle || title,
             originalLanguage: data.original_language || null,
+            seasons: isTv ? data.seasons || [] : undefined,
             year,
         };
     } catch (e) {

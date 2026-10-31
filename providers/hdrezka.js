@@ -183,8 +183,8 @@ function fetchText(_0) {
 }
 function fetchJson(_0) {
   return __async(this, arguments, function* (url, options = {}) {
-    const text = yield fetchText(url, options);
-    return JSON.parse(text);
+    const text2 = yield fetchText(url, options);
+    return JSON.parse(text2);
   });
 }
 function postForm(_0, _1) {
@@ -286,14 +286,14 @@ function parseSearchHtml(html) {
 }
 function rankCandidates(candidates, { title, originalTitle, year, mediaType }) {
   if (candidates.length === 0) return [];
-  const norm = (s) => (s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  const norm2 = (s) => (s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
   const targetType = mediaType === "tv" || mediaType === "anime" ? "tv" : "movie";
-  const normalizedTargets = [title, originalTitle].filter(Boolean).map(norm).filter(Boolean);
+  const normalizedTargets = [title, originalTitle].filter(Boolean).map(norm2).filter(Boolean);
   const scored = candidates.map((c) => {
     let score = 0;
     if (c.type === targetType) score += 10;
     if (year && c.year === year) score += 50;
-    const normalizedTitle = norm(c.title);
+    const normalizedTitle = norm2(c.title);
     for (const t of normalizedTargets) {
       if (normalizedTitle === t) {
         score += 40;
@@ -307,6 +307,62 @@ function rankCandidates(candidates, { title, originalTitle, year, mediaType }) {
   });
   scored.sort((a, b) => b.score - a.score);
   return scored.map((s) => s.c);
+}
+
+// src/hdrezka/seasons.js
+var attrs = (tag) => {
+  const out = {};
+  for (const m of tag.matchAll(/([\w-]+)\s*=\s*(["'])(.*?)\2/g)) out[m[1]] = m[3];
+  return out;
+};
+var text = (s) => s.replace(/<[^>]*>/g, "").replace(/&#(x[0-9a-f]+|\d+);/gi, (_, n) => String.fromCodePoint(n[0].toLowerCase() === "x" ? parseInt(n.slice(1), 16) : Number(n))).replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&nbsp;/g, " ").trim();
+var norm = (s) => text(s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+function pageEpisodes(html) {
+  const seasons = /* @__PURE__ */ new Map();
+  for (const m of html.matchAll(/<(?:li|a)\b[^>]*>/gi)) {
+    const a = attrs(m[0]);
+    if (!(a.class || "").split(/\s+/).includes("b-simple_episode__item")) continue;
+    const s = Number(a["data-season_id"]), e = Number(a["data-episode_id"]);
+    if (!Number.isInteger(s) || s < 0 || !Number.isInteger(e) || e < 1) continue;
+    if (!seasons.has(s)) seasons.set(s, /* @__PURE__ */ new Set());
+    seasons.get(s).add(e);
+  }
+  return seasons;
+}
+function pageSeasons(html) {
+  const seasons = new Set(pageEpisodes(html).keys());
+  for (const m of html.matchAll(/<(?:li|a)\b[^>]*>/gi)) {
+    const a = attrs(m[0]);
+    if (!(a.class || "").split(/\s+/).includes("b-simple_season__item")) continue;
+    const season = Number(a["data-tab_id"]);
+    if (Number.isInteger(season) && season >= 0) seasons.add(season);
+  }
+  return seasons;
+}
+function linkedSeasonPages(html, titles, season) {
+  if (!Number.isInteger(season) || season < 1) return [];
+  const bases = titles.filter(Boolean).map(norm);
+  const rows = html.split(/<div\b(?=[^>]*\bclass=["']b-post__partcontent_item(?:\s|["']))/i).slice(1);
+  const found = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const a = attrs("<div " + row.slice(0, row.indexOf(">") + 1));
+    const title = row.match(/<div\b[^>]*class=["']td title["'][^>]*>([\s\S]*?)<\/div>/i);
+    const year = row.match(/class=["']td year["'][^>]*>\s*(\d{4})/i);
+    const path = (a["data-url"] || "").replace(/^https?:\/\/[^/]+/i, "").split(/[?#]/)[0];
+    if (!/^\/(?:series|animation)\/[^\s<>"']+\/\d+-[^/]+\.html$/.test(path) || !title) continue;
+    const n = norm(title[1]);
+    if (!bases.some((b) => n === b + season || n === b + "\u0441\u0435\u0437\u043E\u043D" + season || n === b + "season" + season || n === b + season + "\u0441\u0435\u0437\u043E\u043D")) continue;
+    found.set(path, { path, title: text(title[1]), year: year ? Number(year[1]) : null });
+  }
+  return [...found.values()];
+}
+function episodeOnSplitPage(html, season, episode, expectedCount) {
+  const seasons = pageEpisodes(html);
+  const local = seasons.has(season) ? season : seasons.size === 1 ? [...seasons.keys()][0] : null;
+  if (local === null || !seasons.get(local).has(episode)) return null;
+  const episodes = seasons.get(local);
+  if (expectedCount && (episodes.size > expectedCount || [...episodes].some((e) => e > expectedCount))) return null;
+  return local;
 }
 
 // src/hdrezka/sha256.js
@@ -773,9 +829,32 @@ function getStreams(tmdbId, mediaType, season, episode, languageGroup = "all") {
     const candidates = yield searchHdrezka(title, tmdb.originalTitle, year, mediaType);
     if (candidates.length === 0) throw new Error(`STAGE2_NO_CANDIDATES title=${title}`);
     const best = candidates[0];
-    const pageUrl = best.url.startsWith("http") ? best.url : `${BASE_URL}${best.url.startsWith("/") ? "" : "/"}${best.url}`;
-    const fastEnglish = languageGroup === "en" && !!best.id;
-    const html = yield fetchPage(pageUrl, !fastEnglish);
+    let pageUrl = best.url.startsWith("http") ? best.url : `${BASE_URL}${best.url.startsWith("/") ? "" : "/"}${best.url}`;
+    const isTv = mediaType === "tv" || mediaType === "anime";
+    const fastEnglish = languageGroup === "en" && !!best.id && !isTv;
+    let html = yield fetchPage(pageUrl, !fastEnglish);
+    let sourceSeason = season;
+    if (isTv && html) {
+      const requestedSeason = Number(season), requestedEpisode = Number(episode);
+      const layout = pageEpisodes(html);
+      if (pageSeasons(html).has(requestedSeason)) {
+        if (layout.has(requestedSeason) && !layout.get(requestedSeason).has(requestedEpisode)) return [];
+      } else {
+        let linked = linkedSeasonPages(html, [best.title, title, tmdb.originalTitle], requestedSeason);
+        if (!linked.length) return [];
+        const details = tmdb.seasons ? tmdb : yield fetchTmdb(tmdbId, mediaType);
+        const meta = (details.seasons || []).find((s) => s.season_number === requestedSeason);
+        if (!meta) return [];
+        const seasonYear = meta.air_date ? Number(meta.air_date.slice(0, 4)) : null;
+        linked = linked.filter((p) => !seasonYear || p.year === seasonYear);
+        if (linked.length !== 1) return [];
+        pageUrl = BASE_URL + linked[0].path;
+        html = yield fetchPage(pageUrl);
+        sourceSeason = episodeOnSplitPage(html, requestedSeason, requestedEpisode, meta.episode_count);
+        if (sourceSeason === null) return [];
+        console.log(`[HDRezka] mapped S${season}E${episode} to ${linked[0].title}, local S${sourceSeason}E${episode}`);
+      }
+    }
     let postId;
     let defaultTranslatorId;
     if (fastEnglish && html === null) {
@@ -796,13 +875,12 @@ function getStreams(tmdbId, mediaType, season, episode, languageGroup = "all") {
     })).filter((translator) => translatorMatchesGroup(translator, languageGroup));
     if (translators.length === 0) return [];
     const favs = generateFavs();
-    const isTv = mediaType === "tv" || mediaType === "anime";
     const baseForm = {
       id: postId,
       action: isTv ? "get_stream" : "get_movie"
     };
     if (isTv) {
-      baseForm.season = season;
+      baseForm.season = sourceSeason;
       baseForm.episode = episode;
     }
     const out = [];
@@ -977,6 +1055,7 @@ function fetchTmdb(tmdbId, mediaType) {
         title,
         originalTitle: originalTitle || title,
         originalLanguage: data.original_language || null,
+        seasons: isTv ? data.seasons || [] : void 0,
         year
       };
     } catch (e) {
